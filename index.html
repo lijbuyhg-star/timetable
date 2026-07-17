@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>自動同步旅行時間表</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="status-bar" id="sync-status">⚡ 介面安全初始化中...</div>
+
+    <div class="schedule-container">
+        <h2>✈️ 兩天一夜行程表</h2>
+        
+        <div class="day-tabs">
+            <button class="tab-btn active" id="tab-day1">📅 第一天 (Day 1)</button>
+            <button class="tab-btn" id="tab-day2">📅 第二天 (Day 2)</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>時間段 (滾動更改)</th>
+                    <th id="schedule-header">Day 1 行程內容</th>
+                </tr>
+            </thead>
+            <tbody id="schedule-body">
+                </tbody>
+        </table>
+    </div>
+
+    <div class="modules-container">
+        <h2>🎒 行程模塊管理</h2>
+        <p class="hint-text">💡 行程操作秘訣：按住下方或表格內的行程皆可自由「跨時間拖曳搬移」！雙擊格子可以備註詳細內容。</p>
+        
+        <div class="fast-palette">
+            <div class="fast-palette-title">主題速選：</div>
+            <div class="color-dot active" style="background-color: #22c55e;" data-color="#22c55e" title="景點"></div>
+            <div class="color-dot" style="background-color: #f97316;" data-color="#f97316" title="美食"></div>
+            <div class="color-dot" style="background-color: #3b82f6;" data-color="#3b82f6" title="交通"></div>
+            <div class="color-dot" style="background-color: #eab308;" data-color="#eab308" title="購物"></div>
+            <div class="color-dot" style="background-color: #a855f7;" data-color="#a855f7" title="住宿"></div>
+            <div class="color-dot" style="background-color: #ef4444;" data-color="#ef4444" title="重要"></div>
+        </div>
+
+        <div class="add-tool-bar">
+            <input type="text" id="new-name" placeholder="填入新行程 (如: ⛩️ 參拜)">
+            <div class="color-picker-capsule" onclick="document.getElementById('new-color').click()">
+                <span>調色盤</span>
+                <input type="color" id="new-color" value="#22c55e">
+            </div>
+            <button id="add-btn">➕ 新增模塊</button>
+        </div>
+
+        <div class="module-list" id="module-list">
+            </div>
+    </div>
+
+    <div class="danger-zone">
+        <button id="reset-btn" class="reset-btn">🔒 強制還原全域乾淨結構 (需密碼)</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
