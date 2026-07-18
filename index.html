@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>自動同步旅行時間表 (滑動修復完美版)</title>
+    <title>自動同步旅行時間表 (極速廣播秒級同步版)</title>
     <style>
       /* 🔒 全域禁用干擾拖曳與引發殘影的瀏覽器原生行為，但保留滾動能力 */
       *,
@@ -205,7 +205,6 @@
         width: 100%;
       }
 
-      /* ✨ 核心修復：移除了 touch-action: none; 允許手指在此處正常滑動網頁 */
       .sub-block {
         flex: 1;
         min-width: 0;
@@ -343,7 +342,6 @@
         margin-top: 15px;
       }
 
-      /* ✨ 核心修復：移除了 touch-action: none; 允許在模塊清單區域手指滑動頁面 */
       .module {
         display: inline-flex;
         align-items: center;
@@ -699,7 +697,7 @@
     <script>
       const SUPABASE_URL = "https://hkrdrmgfumxmuujjmtwg.supabase.co";
       const SUPABASE_ANON_KEY =
-        "eyJhbGciOiJIUzI1NiIsInR5cCIOiIkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrcmRybWdmdW14bXV1amptdHdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyODgzMzgsImV4cCI6MjA5OTg2NDMzOH0.NfAigDfYgdJXVLyTyAQ5D-xaMzbb6f1mmTUCjThZWK4";
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrcmRybWdmdW14bXV1amptdHdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyODgzMzgsImV4cCI6MjA5OTg2NDMzOH0.NfAigDfYgdJXVLyTyAQ5D-xaMzbb6f1mmTUCjThZWK4";
       const SCHEDULE_ID = "global_schedule";
 
       const DEFAULT_MODULES = [
@@ -716,6 +714,8 @@
       let currentText = "";
       let currentDetail = "";
       let supabaseClient = null;
+      let syncChannel = null; // 🚀 廣播通道控制變數
+      const myClientId = "client_" + Math.random().toString(36).substr(2, 9); // 🚀 本機獨立裝置 ID
 
       let isPointerDown = false;
       let isDragActive = false;
@@ -1070,7 +1070,6 @@
                   }
                 };
 
-                // ✨ 核心修復：若是手指滑動網頁觸發的 Pointer 取消，安全清理計時器，不進行任何選取行為
                 const cancelHandler = () => {
                   clearTimeout(longPressTimer);
                   isPointerDown = false;
@@ -1267,7 +1266,6 @@
             }
           };
 
-          // ✨ 核心修復：若是滑動網頁（Pointer被取消），進行純清理，不干擾原生滾動，也不誤觸點擊選中
           const handleCancel = () => {
             clearTimeout(moduleTimer);
             isPointerDown = false;
@@ -1307,7 +1305,6 @@
           srcActivityId: srcActivityId,
         };
 
-        // 🔒 核心優化：只有在真正長按觸發拖曳後，才動態使用 setPointerCapture 鎖定手指，防止接下來的拖曳畫面引發網頁滾動
         if (element && initialEvent && initialEvent.pointerId !== undefined) {
           try {
             element.setPointerCapture(initialEvent.pointerId);
@@ -1585,6 +1582,7 @@
         .getElementById("reset-btn")
         .addEventListener("click", openResetModal);
 
+      // 🌟 核心重構：讓本機變更在幾毫秒內以極速廣播通道發射出去，資料庫則悄悄在背景處理
       async function saveDataToCloud() {
         try {
           localStorage.setItem(
@@ -1592,8 +1590,19 @@
             JSON.stringify(travelData)
           );
         } catch (e) {}
+
+        // 🚀 廣播第一防線：不驚動資料庫，率先使用 WebSocket 通道把當前變動廣播給每個人
+        if (supabaseClient && syncChannel) {
+          syncChannel.send({
+            type: "broadcast",
+            event: "ui-change",
+            payload: { data: travelData, senderId: myClientId },
+          });
+        }
+
         if (!supabaseClient) return;
         try {
+          // 📦 隨後再背地裡完成 PostgreSQL 實體資料庫寫入
           await supabaseClient
             .from("travel_schedules")
             .upsert({ id: SCHEDULE_ID, data: travelData });
@@ -1645,8 +1654,10 @@
               );
               loadDataFromCloud();
 
-              supabaseClient
-                .channel("realtime-travel-schedule")
+              // 🚀 核心重構：同時訂閱傳統資料庫變更日誌，以及 WebSocket 遊戲級廣播通道
+              syncChannel = supabaseClient.channel("realtime-travel-schedule");
+
+              syncChannel
                 .on(
                   "postgres_changes",
                   {
@@ -1666,6 +1677,7 @@
                         .getElementById("app-modal")
                         .classList.contains("open")
                     ) {
+                      // 傳統資料庫回溯保護，若已被廣播更新則此處會安全過濾不重繪
                       if (safeMergeData(payload.new.data) === "rebuild")
                         initTableRows();
                       initTableRows();
@@ -1674,6 +1686,29 @@
                     }
                   }
                 )
+                // 📡 遊戲級 WebSocket 極速監聽：
+                .on("broadcast", { event: "ui-change" }, ({ payload }) => {
+                  // 安全機制：忽略自己這台裝置發出的廣播
+                  if (payload && payload.senderId === myClientId) return;
+
+                  if (
+                    payload &&
+                    payload.data &&
+                    !isPointerDown &&
+                    !isDragActive &&
+                    document.activeElement.tagName !== "INPUT" &&
+                    !document
+                      .getElementById("app-modal")
+                      .classList.contains("open")
+                  ) {
+                    // 幾毫秒內秒速同步別人的手指動作！
+                    if (safeMergeData(payload.data) === "rebuild")
+                      initTableRows();
+                    initTableRows();
+                    renderModules();
+                    updateStatus("⚡ 極速通道已秒級同步！");
+                  }
+                })
                 .subscribe();
             }
           } catch (e) {
