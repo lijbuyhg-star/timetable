@@ -1,845 +1,1688 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>自動同步旅行時間表 (精簡4格防誤觸版)</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>自動同步旅行時間表 (滑動修復完美版)</title>
     <style>
-        /* 全域防文字選取與背景預設輕柔紅色 🔴 */
+      /* 🔒 全域禁用干擾拖曳與引發殘影的瀏覽器原生行為，但保留滾動能力 */
+      *,
+      *::before,
+      *::after {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        -webkit-touch-callout: none !important;
+        -webkit-user-drag: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+      }
+
+      /* 🔓 確保文字輸入框依然能正常被選取輸入 */
+      input[type="text"],
+      input[type="password"],
+      input[type="time"] {
+        user-select: text !important;
+        -webkit-user-select: text !important;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background-color: #fee2e2;
+        padding: 20px;
+        padding-bottom: 120px; /* 留出底部固定垃圾桶的空間 */
+        color: #1e293b;
+        margin: 0;
+        box-sizing: border-box;
+      }
+
+      h2 {
+        margin-top: 0;
+        color: #0f172a;
+        font-size: 1.4em;
+        font-weight: 700;
+      }
+
+      .status-bar {
+        font-size: 0.85em;
+        color: #475569;
+        background: #e2e8f0;
+        padding: 6px 16px;
+        border-radius: 20px;
+        margin-bottom: 12px;
+        font-weight: 600;
+        text-align: center;
+        width: 100%;
+        max-width: 600px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+      }
+
+      .schedule-container {
+        background: white;
+        padding: 20px;
+        border-radius: 16px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05),
+          0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        margin-bottom: 20px;
+        width: 100%;
+        max-width: 600px;
+        box-sizing: border-box;
+      }
+
+      .tab-container {
+        display: flex;
+        background: #f1f5f9;
+        padding: 4px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        gap: 4px;
+        border: 1px solid #e2e8f0;
+      }
+      .tab-btn {
+        flex: 1;
+        padding: 10px;
+        border: none;
+        background: none;
+        font-weight: 700;
+        font-size: 0.95em;
+        color: #64748b;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .tab-btn.active {
+        background: white;
+        color: #4f46e5;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05),
+          0 1px 3px rgba(0, 0, 0, 0.02);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      th,
+      td {
+        border: 1px solid #e2e8f0;
+        text-align: center;
+        border-radius: 6px;
+      }
+      th {
+        background-color: #f8fafc;
+        color: #475569;
+        font-weight: 700;
+        font-size: 0.95em;
+        padding: 10px;
+        height: 40px;
+      }
+
+      td.time-col {
+        background-color: #f8fafc;
+        padding: 6px;
+        width: 130px;
+      }
+      .time-cell-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .time-input {
+        flex: 1;
+        border: 1px solid transparent;
+        background: #f1f5f9;
+        border-radius: 6px;
+        padding: 6px 4px;
+        font-weight: bold;
+        color: #475569;
+        font-size: 0.95em;
+        text-align: center;
+        outline: none;
+      }
+      .time-input:focus {
+        background: white;
+        border-color: #6366f1;
+      }
+
+      .del-row-btn {
+        background: none;
+        border: none;
+        color: #94a3b8;
+        cursor: pointer;
+        font-size: 13px;
+        padding: 4px;
+        border-radius: 6px;
+        transition: all 0.2s;
+      }
+      .del-row-btn:hover {
+        color: #ef4444;
+        background: #fee2e2;
+      }
+
+      .add-row-bar {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px dashed #e2e8f0;
+      }
+      .add-row-bar input[type="time"] {
+        padding: 10px;
+        border: 2px solid #cbd5e1;
+        border-radius: 10px;
+        font-weight: bold;
+        color: #475569;
+        outline: none;
+      }
+      .add-row-bar button {
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #4f46e5, #6366f1);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 4px 10px -2px rgba(99, 102, 241, 0.2);
+      }
+
+      .cell-inner-flex {
+        position: relative;
+        padding: 6px;
+        display: flex;
+        gap: 6px;
+        align-items: stretch;
+        justify-content: center;
+        box-sizing: border-box;
+        min-height: 60px;
+        height: 100%;
+        width: 100%;
+      }
+
+      /* ✨ 核心修復：移除了 touch-action: none; 允許手指在此處正常滑動網頁 */
+      .sub-block {
+        flex: 1;
+        min-width: 0;
+        border-radius: 8px;
+        padding: 4px 6px;
+        color: white;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        word-break: break-all;
+        box-sizing: border-box;
+        transition: filter 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+      }
+
+      .sub-block.selected-act {
+        filter: brightness(0.6) !important;
+        box-shadow: inset 0 0 0 3px #0f172a, 0 6px 14px rgba(0, 0, 0, 0.35) !important;
+      }
+
+      .cell-inner-flex.drag-over {
+        box-shadow: inset 0 0 0 3px #10b981 !important;
+        background-color: rgba(16, 185, 129, 0.08) !important;
+      }
+
+      .modules-container {
+        background: white;
+        padding: 20px;
+        border-radius: 16px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05),
+          0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        width: 100%;
+        max-width: 600px;
+        box-sizing: border-box;
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      .fast-palette {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        background: #f8fafc;
+        padding: 8px;
+        border-radius: 10px;
+      }
+      .fast-palette-title {
+        font-size: 0.8em;
+        color: #64748b;
+        font-weight: 700;
+      }
+      .color-dot {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: transform 0.15s;
+        border: 2px solid white;
+        box-shadow: 0 0 0 1px #e2e8f0;
+      }
+      .color-dot.active {
+        transform: scale(1.2);
+        box-shadow: 0 0 0 2px #6366f1;
+      }
+
+      .add-tool-bar {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto auto;
+        gap: 10px;
+        align-items: center;
+        background: #f8fafc;
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+      }
+      .add-tool-bar input[type="text"] {
+        padding: 10px;
+        border: 2px solid #cbd5e1;
+        border-radius: 8px;
+        width: 100%;
+        outline: none;
+        font-size: 0.9em;
+        box-sizing: border-box;
+      }
+      .add-tool-bar input[type="text"]:focus {
+        border-color: #6366f1;
+      }
+
+      .color-picker-capsule {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: white;
+        padding: 0 10px;
+        border: 2px solid #cbd5e1;
+        border-radius: 8px;
+        height: 40px;
+        box-sizing: border-box;
+      }
+      .color-picker-capsule span {
+        font-size: 0.8em;
+        color: #64748b;
+        font-weight: 700;
+      }
+      .add-tool-bar input[type="color"] {
+        width: 22px;
+        height: 22px;
+        border: none;
+        background: transparent;
+        padding: 0;
+      }
+
+      .add-tool-bar button {
+        padding: 0 16px;
+        height: 40px;
+        background: linear-gradient(135deg, #4f46e5, #6366f1);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .module-list {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 15px;
+      }
+
+      /* ✨ 核心修復：移除了 touch-action: none; 允許在模塊清單區域手指滑動頁面 */
+      .module {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-weight: bold;
+        color: white;
+        border: 3px solid transparent;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
+        font-size: 0.9em;
+      }
+      .module.active {
+        border: 3px solid #0f172a;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      }
+      .module.eraser {
+        background-color: #ffffff;
+        color: #475569;
+        border: 2px dashed #cbd5e1;
+        text-shadow: none;
+      }
+      .module.eraser.active {
+        border: 3px solid #ef4444;
+      }
+
+      .mod-btn-group {
+        display: inline-flex;
+        gap: 4px;
+        margin-left: 6px;
+      }
+      .del-mod-btn {
+        background: rgba(255, 255, 255, 0.25);
+        color: white;
+        border-radius: 50%;
+        width: 18px;
+        height: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        cursor: pointer;
+      }
+      .del-mod-btn:hover {
+        background: #ef4444;
+      }
+
+      .delete-zone {
+        position: fixed;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        width: calc(100% - 40px);
+        max-width: 600px;
+        background: rgba(254, 226, 226, 0.95);
+        border: 2px dashed #ef4444;
+        color: #ef4444;
+        padding: 16px;
+        border-radius: 12px;
+        text-align: center;
+        font-weight: 800;
+        font-size: 1em;
+        box-sizing: border-box;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+          opacity 0.2s, visibility 0.2s;
+        z-index: 15000;
+        backdrop-filter: blur(4px);
+        box-shadow: 0 -4px 15px rgba(239, 68, 68, 0.15);
+      }
+      .delete-zone.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+      }
+      .delete-zone.drag-over {
+        background: #ef4444 !important;
+        color: white !important;
+        transform: translateX(-50%) scale(1.03);
+        box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
+      }
+
+      .danger-zone {
+        margin-top: 10px;
+      }
+      .reset-btn {
+        background: white;
+        border: 1.5px solid #cbd5e1;
+        color: #64748b;
+        padding: 8px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.8em;
+        font-weight: 600;
+      }
+      .reset-btn:hover {
+        border-color: #ef4444;
+        color: #ef4444;
+      }
+
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 20000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s ease;
+      }
+      .modal-overlay.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .modal-content {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 360px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        transform: scale(0.95);
+        transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+        box-sizing: border-box;
+      }
+      .modal-overlay.open .modal-content {
+        transform: scale(1);
+      }
+      .modal-header {
+        font-size: 1.15em;
+        font-weight: 700;
+        margin-bottom: 12px;
+        color: #0f172a;
+      }
+      .modal-body {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+      .modal-body label {
+        font-size: 0.8em;
+        font-weight: 700;
+        color: #475569;
+        margin-bottom: -4px;
+        text-align: left;
+      }
+      .modal-body input[type="text"],
+      .modal-body input[type="password"] {
+        padding: 10px;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        outline: none;
+        font-size: 0.95em;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .modal-body input:focus {
+        border-color: #6366f1;
+      }
+      .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      .modal-btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+        border: none;
+        font-size: 0.92em;
+        transition: background 0.1s;
+      }
+      .modal-btn.cancel {
+        background: #f1f5f9;
+        color: #64748b;
+      }
+      .modal-btn.cancel:active {
+        background: #e2e8f0;
+      }
+      .modal-btn.confirm {
+        background: linear-gradient(135deg, #4f46e5, #6366f1);
+        color: white;
+      }
+      .modal-btn.confirm:active {
+        opacity: 0.9;
+      }
+      .modal-btn.danger {
+        background: #ef4444;
+        color: white;
+      }
+
+      @media (max-width: 600px) {
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #fee2e2;
-            padding: 20px;
-            color: #1e293b;
-            user-select: none;
-            -webkit-user-select: none;
-            margin: 0;
-            box-sizing: border-box;
+          padding: 10px;
+          padding-bottom: 110px;
         }
-
-        h2 { margin-top: 0; color: #0f172a; font-size: 1.4em; font-weight: 700; }
-
-        .status-bar {
-            font-size: 0.85em;
-            color: #475569;
-            background: #e2e8f0;
-            padding: 6px 16px;
-            border-radius: 20px;
-            margin-bottom: 15px;
-            font-weight: 600;
-            text-align: center;
-        }
-
-        .schedule-container {
-            background: white;
-            padding: 20px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-            width: 100%;
-            max-width: 650px;
-            box-sizing: border-box;
-        }
-
-        /* 📅 Day 1 / Day 2 切換按鈕區 */
-        .tab-container {
-            display: flex;
-            background: #f1f5f9;
-            padding: 4px;
-            border-radius: 12px;
-            margin-bottom: 16px;
-            gap: 4px;
-            border: 1px solid #e2e8f0;
-        }
-        .tab-btn {
-            flex: 1;
-            border: none;
-            background: none;
-            padding: 10px 16px;
-            font-weight: 700;
-            font-size: 1em;
-            color: #64748b;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .tab-btn.active {
-            background: white;
-            color: #4f46e5;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.02);
-        }
-
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: center; height: 64px; border-radius: 6px; }
-        th { background-color: #f8fafc; color: #475569; font-weight: 700; font-size: 0.95em; }
-
-        /* 時間欄整合容器與原生時分選擇器 */
-        td.time-col { background-color: #f8fafc; padding: 6px; width: 140px; }
-        .time-cell-wrapper { display: flex; align-items: center; gap: 6px; }
-        
-        .time-input {
-            flex: 1; border: 1px solid transparent; background: #f1f5f9; border-radius: 6px;
-            padding: 6px 4px; font-weight: bold; color: #475569; font-size: 0.95em;
-            text-align: center; outline: none; cursor: pointer; transition: all 0.2s ease;
-            font-family: inherit; box-sizing: border-box;
-        }
-        .time-input:hover { background: #e2e8f0; border-color: #cbd5e1; }
-        .time-input:focus { background: #ffffff; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15); }
-
-        /* 刪除整列時間軸按鈕 */
-        .del-row-btn {
-            background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 14px;
-            padding: 4px 6px; border-radius: 6px; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;
-        }
-        .del-row-btn:hover { color: #ef4444; background: #fee2e2; }
-
-        /* 底部新增格子工具列 */
-        .add-row-bar {
-            display: flex; justify-content: center; align-items: center; gap: 10px;
-            margin-top: 20px; padding-top: 16px; border-top: 1px dashed #e2e8f0;
-        }
-        .add-row-bar input[type="time"] {
-            padding: 10px; border: 2px solid #cbd5e1; border-radius: 10px;
-            font-weight: bold; color: #475569; outline: none; background: #f8fafc;
-        }
-        .add-row-bar button {
-            padding: 10px 20px; background: linear-gradient(135deg, #4f46e5, #6366f1);
-            color: white; border: none; border-radius: 10px; font-weight: 700; cursor: pointer;
-            box-shadow: 0 4px 10px -2px rgba(99, 102, 241, 0.2); transition: all 0.2s;
-        }
-        .add-row-bar button:hover { transform: translateY(-1px); filter: brightness(1.08); }
-
-        /* 行程時間表格子 - 支援多方塊容器 */
-        td.cell { 
-            position: relative;
-            padding: 4px !important;
-            display: flex;
-            gap: 6px;
-            align-items: stretch;
-            justify-content: center;
-            box-sizing: border-box;
-            transition: background-color 0.2s;
-        }
-        td.cell.empty { background-color: transparent !important; }
-        
-        /* 內部獨立行程小方塊 */
-        .sub-block {
-            flex: 1;
-            min-width: 0;
-            border-radius: 8px;
-            padding: 4px 6px;
-            color: white;
-            font-weight: bold;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.25);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            cursor: grab;
-            transition: transform 0.2s, box-shadow 0.2s;
-            word-break: break-all;
-            box-sizing: border-box;
-        }
-        .sub-block:hover { box-shadow: inset 0 0 0 3px rgba(0,0,0,0.15); transform: scale(0.98); }
-
-        /* 綠色吸附與交換特效 */
-        td.cell.drag-over {
-            box-shadow: inset 0 0 0 3px #10b981 !important;
-            background-color: rgba(16, 185, 129, 0.12) !important;
-        }
-
+        .schedule-container,
         .modules-container {
-            background: white; padding: 24px; border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.05);
-            width: 100%; max-width: 650px; box-sizing: border-box; text-align: center;
+          padding: 14px;
         }
-
-        .add-tool-bar { 
-            display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 12px; align-items: center; 
-            background: #f8fafc; padding: 16px; border-radius: 14px; border: 1px solid #e2e8f0; margin-bottom: 16px;
+        td.time-col {
+          width: 115px;
+          padding: 4px;
         }
-        .add-tool-bar input[type="text"] { 
-            padding: 12px 16px; border: 2px solid #cbd5e1; border-radius: 10px; width: 100%; 
-            outline: none; font-size: 0.95em; font-weight: 500; color: #1e293b; background-color: white;
-            transition: all 0.2s ease; box-sizing: border-box;
+        .time-input {
+          font-size: 0.9em;
+          padding: 6px 2px;
         }
-        .add-tool-bar input[type="text"]:focus { border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); }
-
-        .color-picker-capsule {
-            display: flex; align-items: center; gap: 8px; background: white; padding: 0 14px;
-            border: 2px solid #cbd5e1; border-radius: 10px; height: 48px; box-sizing: border-box; cursor: pointer; transition: all 0.2s ease;
+        .cell-inner-flex {
+          font-size: 0.85em;
+          padding: 4px;
+          min-height: 56px;
+          gap: 4px;
         }
-        .color-picker-capsule span { font-size: 0.85em; color: #64748b; font-weight: 700; }
-
-        .add-tool-bar input[type="color"] { 
-            -webkit-appearance: none; -moz-appearance: none; appearance: none;
-            width: 26px; height: 26px; border: none; background: transparent; cursor: pointer; padding: 0;
+        .sub-block {
+          font-size: 0.8em;
+          padding: 2px 4px;
         }
-        .add-tool-bar input[type="color"]::-webkit-color-swatch { 
-            border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 0 1px #cbd5e1, 0 2px 4px rgba(0,0,0,0.1);
+        th {
+          font-size: 0.9em;
+          padding: 8px;
         }
-
-        .add-tool-bar button { 
-            padding: 0 22px; height: 48px; background: linear-gradient(135deg, #4f46e5, #6366f1); 
-            color: white; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 0.95em;
-            transition: all 0.2s ease; box-shadow: 0 4px 10px -2px rgba(99, 102, 241, 0.3); white-space: nowrap;
+        .module {
+          padding: 8px 12px;
+          font-size: 0.85em;
         }
-        .add-tool-bar button:hover { transform: translateY(-1px); filter: brightness(1.08); }
-
-        .fast-palette {
-            display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 18px; background: #f8fafc; padding: 10px; border-radius: 10px;
+        .add-tool-bar {
+          grid-template-columns: 1fr;
+          gap: 8px;
+          padding: 10px;
         }
-        .fast-palette-title { font-size: 0.8em; color: #64748b; font-weight: 700; }
-        .color-dot {
-            width: 24px; height: 24px; border-radius: 50%; cursor: pointer; transition: transform 0.15s;
-            border: 2px solid white; box-shadow: 0 0 0 1px #e2e8f0, 0 2px 4px rgba(0,0,0,0.06);
+        .color-picker-capsule,
+        .add-tool-bar button {
+          width: 100%;
+          height: 38px;
         }
-        .color-dot.active { transform: scale(1.2); box-shadow: 0 0 0 2px #6366f1, 0 3px 6px rgba(0,0,0,0.15); }
-
-        .module-list { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
-        .module { 
-            display: inline-flex; align-items: center; justify-content: center; padding: 12px 16px; 
-            border-radius: 10px; cursor: grab; font-weight: bold; color: white; border: 3px solid transparent; 
-            transition: transform 0.2s, box-shadow 0.2s; text-shadow: 1px 1px 2px rgba(0,0,0,0.18);
-            touch-action: none; font-size: 0.95em; box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-        }
-        .module.active { border: 3px solid #0f172a; transform: scale(1.05); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-        .module.eraser { background-color: #ffffff; color: #475569; border: 2px dashed #cbd5e1; text-shadow: none; }
-        .module.eraser.active { border: 3px solid #ef4444; }
-
-        .mod-btn-group { display: inline-flex; gap: 4px; margin-left: 8px; }
-        .del-mod-btn, .edit-mod-btn {
-            background: rgba(255, 255, 255, 0.25); color: white; border-radius: 50%;
-            width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center;
-            font-size: 11px; cursor: pointer; transition: all 0.15s ease; text-shadow: none; user-select: none;
-        }
-        .del-mod-btn:hover { background: #ef4444; transform: scale(1.15); }
-        .edit-mod-btn:hover { background: #4f46e5; transform: scale(1.15); }
-
-        .danger-zone { margin-top: 50px; margin-bottom: 25px; width: 100%; max-width: 650px; display: flex; justify-content: center; }
-        .reset-btn {
-            background: none; border: 1.5px solid #cbd5e1; color: #94a3b8; padding: 10px 20px;
-            border-radius: 8px; cursor: pointer; font-size: 0.82em; font-weight: 600; letter-spacing: 0.5px; transition: all 0.2s ease;
-        }
-        .reset-btn:hover { border-color: #ef4444; color: #ef4444; background-color: rgba(239, 68, 68, 0.05); }
-
-        /* 🌐 網頁內置多功能美化彈窗組件 */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
-            display: flex; align-items: center; justify-content: center; z-index: 20000;
-            opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
-        }
-        .modal-overlay.open { opacity: 1; pointer-events: auto; }
-        .modal-content {
-            background: white; padding: 24px; border-radius: 16px; width: 90%; max-width: 400px;
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
-            transform: scale(0.95); transition: transform 0.2s ease; box-sizing: border-box;
-        }
-        .modal-overlay.open .modal-content { transform: scale(1); }
-        .modal-header { font-size: 1.2em; font-weight: 700; margin-bottom: 16px; color: #0f172a; display: flex; align-items: center; gap: 6px; }
-        .modal-body { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
-        .modal-body label { font-size: 0.85em; font-weight: 700; color: #475569; margin-bottom: -4px; text-align: left; }
-        .modal-body input[type="text"], .modal-body input[type="password"] {
-            padding: 11px 14px; border: 2px solid #e2e8f0; border-radius: 8px; outline: none; font-size: 0.95em; width: 100%; box-sizing: border-box;
-        }
-        .modal-body input:focus { border-color: #6366f1; }
-        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
-        .modal-btn { padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; font-size: 0.9em; transition: background 0.15s; }
-        .modal-btn.cancel { background: #f1f5f9; color: #64748b; }
-        .modal-btn.cancel:hover { background: #e2e8f0; }
-        .modal-btn.confirm { background: #4f46e5; color: white; }
-        .modal-btn.confirm:hover { filter: brightness(1.1); }
-        .modal-btn.danger { background: #ef4444; color: white; }
-        .modal-btn.danger:hover { filter: brightness(1.1); }
-
-        @media (max-width: 600px) {
-            body { padding: 10px; background-color: #fee2e2; }
-            .schedule-container, .modules-container { padding: 14px; border-radius: 14px; }
-            td.time-col { width: 125px; padding: 4px; }
-            .time-input { font-size: 0.9em; padding: 6px 2px; }
-            td.cell { font-size: 0.85em; padding: 4px; height: 64px; flex-direction: row; gap: 4px; }
-            .sub-block { font-size: 0.85em; padding: 2px 4px; }
-            th { font-size: 0.9em; padding: 8px; }
-            .module { padding: 12px 14px; font-size: 0.9em; }
-            .add-tool-bar { grid-template-columns: 1fr; gap: 10px; padding: 12px; }
-            .color-picker-capsule, .add-tool-bar button { width: 100%; height: 46px; }
-            .danger-zone { margin-top: 60px; }
-        }
+      }
     </style>
-</head>
-<body>
-
-    <div class="status-bar" id="sync-status">⚡ 介面安全初始化中...</div>
+  </head>
+  <body>
+    <div class="status-bar" id="sync-status">⚡ 數據通道準備中...</div>
 
     <div class="schedule-container">
-        <h2>✈️ 兩天一夜行程表</h2>
-        
-        <div class="tab-container">
-            <button class="tab-btn active" id="btn-day1" onclick="switchDayView(1)">Day 1</button>
-            <button class="tab-btn" id="btn-day2" onclick="switchDayView(2)">Day 2</button>
-        </div>
+      <h2>✈️ 協同旅行時間表</h2>
 
-        <table id="schedule-table">
-            <thead>
-                <tr>
-                    <th style="width: 140px;">時間點 (可微調/刪除)</th>
-                    <th id="column-header">Day 1 行程 (可納2個方塊)</th>
-                </tr>
-            </thead>
-            <tbody id="schedule-body"></tbody>
-        </table>
+      <div class="tab-container">
+        <button class="tab-btn active" id="btn-day1" onclick="switchDay(1)">
+          Day 1
+        </button>
+        <button class="tab-btn" id="btn-day2" onclick="switchDay(2)">
+          Day 2
+        </button>
+      </div>
 
-        <div class="add-row-bar">
-            <input type="time" id="new-row-time" value="12:00">
-            <button id="add-row-btn">➕ 新增時間格子</button>
-        </div>
+      <table id="schedule-table">
+        <thead>
+          <tr>
+            <th style="width: 130px">時間</th>
+            <th id="column-header">Day 1 行程 (可納2個方塊)</th>
+          </tr>
+        </thead>
+        <tbody id="schedule-body"></tbody>
+      </table>
+
+      <div class="add-row-bar">
+        <input type="time" id="new-row-time" value="12:00" />
+        <button id="add-row-btn">➕ 新增時間格子</button>
+      </div>
     </div>
 
     <div class="modules-container">
-        <h2>🎒 行程模塊管理</h2>
-        <p style="font-size: 0.8em; color: #64748b; margin-top: -5px; margin-bottom: 15px; line-height: 1.4;">💡 蓋章模式：點擊格子會依序填入（單格上限 2 個行程方塊）。點擊已有小方塊會解鎖空手。雙擊已有方塊可自由微調內容！</p>
-        
-        <div class="fast-palette">
-            <div class="fast-palette-title">主題速选：</div>
-            <div class="color-dot active" style="background-color: #22c55e;" data-color="#22c55e" title="景點"></div>
-            <div class="color-dot" style="background-color: #f97316;" data-color="#f97316" title="美食"></div>
-            <div class="color-dot" style="background-color: #3b82f6;" data-color="#3b82f6" title="交通"></div>
-            <div class="color-dot" style="background-color: #eab308;" data-color="#eab308" title="購物"></div>
-            <div class="color-dot" style="background-color: #a855f7;" data-color="#a855f7" title="住宿"></div>
-            <div class="color-dot" style="background-color: #ef4444;" data-color="#ef4444" title="重要"></div>
-        </div>
+      <h2>🎒 行程模塊管理</h2>
 
-        <div class="add-tool-bar">
-            <input type="text" id="new-name" placeholder="行程主題 (如: ⛩️ 參拜)">
-            <input type="text" id="new-detail" placeholder="詳細備忘 (如: 停留1.5小時)">
-            <div class="color-picker-capsule" onclick="document.getElementById('new-color').click()">
-                <span>調色盤</span>
-                <input type="color" id="new-color" value="#22c55e">
-            </div>
-            <button id="add-btn">➕ 新增模塊</button>
-        </div>
+      <div class="fast-palette">
+        <div class="fast-palette-title">速選色彩：</div>
+        <div
+          class="color-dot active"
+          style="background-color: #22c55e"
+          data-color="#22c55e"
+        ></div>
+        <div
+          class="color-dot"
+          style="background-color: #f97316"
+          data-color="#f97316"
+        ></div>
+        <div
+          class="color-dot"
+          style="background-color: #3b82f6"
+          data-color="#3b82f6"
+        ></div>
+        <div
+          class="color-dot"
+          style="background-color: #eab308"
+          data-color="#eab308"
+        ></div>
+        <div
+          class="color-dot"
+          style="background-color: #a855f7"
+          data-color="#a855f7"
+        ></div>
+        <div
+          class="color-dot"
+          style="background-color: #ef4444"
+          data-color="#ef4444"
+        ></div>
+      </div>
 
-        <div class="module-list" id="module-list"></div>
+      <div class="add-tool-bar">
+        <input type="text" id="new-name" placeholder="行程主題 (如: ⛩️ 參拜)" />
+        <input type="text" id="new-detail" placeholder="備忘 (如: 停留1小時)" />
+        <div
+          class="color-picker-capsule"
+          onclick="document.getElementById('new-color').click()"
+        >
+          <span>自訂色</span>
+          <input type="color" id="new-color" value="#22c55e" />
+        </div>
+        <button id="add-btn">➕ 新增模塊</button>
+      </div>
+
+      <div class="module-list" id="module-list"></div>
+    </div>
+
+    <div class="delete-zone" id="delete-zone">
+      🗑️ 放開或拖曳方塊至此即可刪除
     </div>
 
     <div class="danger-zone">
-        <button id="reset-btn" class="reset-btn">🔒 強制還原全域乾淨結構 (需密碼)</button>
+      <button id="reset-btn" class="reset-btn">🔒 清空全域結構 (需密碼)</button>
     </div>
 
     <div id="app-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div id="app-modal-header" class="modal-header">提示</div>
-            <div id="app-modal-body" class="modal-body"></div>
-            <div class="modal-footer">
-                <button id="app-modal-cancel" class="modal-btn cancel">取消</button>
-                <button id="app-modal-confirm" class="modal-btn confirm">確認</button>
-            </div>
+      <div class="modal-content">
+        <div id="app-modal-header" class="modal-header">提示</div>
+        <div id="app-modal-body" class="modal-body"></div>
+        <div class="modal-footer">
+          <button id="app-modal-cancel" class="modal-btn cancel">取消</button>
+          <button id="app-modal-confirm" class="modal-btn confirm">確認</button>
         </div>
+      </div>
     </div>
 
     <script>
-        const SUPABASE_URL = 'https://hkrdrmgfumxmuujjmtwg.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrcmRybWdmdW14bXV1amptdHdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyODgzMzgsImV4cCI6MjA5OTg2NDMzOH0.NfAigDfYgdJXVLyTyAQ5D-xaMzbb6f1mmTUCjThZWK4';
-        const SCHEDULE_ID = 'global_schedule';
+      const SUPABASE_URL = "https://hkrdrmgfumxmuujjmtwg.supabase.co";
+      const SUPABASE_ANON_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCIOiIkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrcmRybWdmdW14bXV1amptdHdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyODgzMzgsImV4cCI6MjA5OTg2NDMzOH0.NfAigDfYgdJXVLyTyAQ5D-xaMzbb6f1mmTUCjThZWK4";
+      const SCHEDULE_ID = "global_schedule";
 
-        const DEFAULT_MODULES = [
-            { text: "📸 景點", color: "#22c55e", detail: "拍照打卡點" },
-            { text: "🍜 美食", color: "#f97316", detail: "在地必吃" },
-            { text: "🚆 交通", color: "#3b82f6", detail: "搭乘接駁車" }
-        ];
+      const DEFAULT_MODULES = [
+        { text: "📸 景點", color: "#22c55e", detail: "拍照打卡點" },
+        { text: "🍜 美食", color: "#f97316", detail: "在地必吃" },
+        { text: "🚆 交通", color: "#3b82f6", detail: "搭乘接駁車" },
+      ];
 
-        // 🛠️ 調整：預設縮減為 4 個最常規使用的精煉時間格
-        const DEFAULT_TIME_SLOTS = ["09:00", "12:00", "15:00", "18:00"];
+      const DEFAULT_TIME_SLOTS = ["09:00", "12:00", "15:00", "18:00"];
 
-        let travelData = { modules: [...DEFAULT_MODULES], day1: [], day2: [] };
-        let currentDay = 1; 
-        let currentColor = '#22c55e'; let currentText = ''; let currentDetail = ''; let supabaseClient = null; 
-        let isDragging = false; let draggedData = null; let dragPreviewEl = null; let lastHoveredCell = null;
-        let startX = 0, startY = 0; let modalCallback = null;
+      let travelData = { modules: [...DEFAULT_MODULES], day1: [], day2: [] };
+      let currentDay = 1;
+      let currentColor = "#22c55e";
+      let currentText = "";
+      let currentDetail = "";
+      let supabaseClient = null;
 
-        const updateStatus = (msg) => { document.getElementById('sync-status').textContent = msg; };
-        function generateId() { return 'id_' + Math.random().toString(36).substr(2, 9); }
+      let isPointerDown = false;
+      let isDragActive = false;
+      let draggedData = null;
+      let dragPreviewEl = null;
+      let activeModuleElement = null;
+      let lastHoveredCell = null;
+      let modalCallback = null;
 
-        function closeModal() { document.getElementById('app-modal').classList.remove('open'); modalCallback = null; }
-        document.getElementById('app-modal-cancel').addEventListener('click', closeModal);
-        document.getElementById('app-modal-confirm').addEventListener('click', () => { if (modalCallback) modalCallback(); });
+      let selectedActivityId = null;
+      let longPressTimer = null;
+      let isLongPressActive = false;
 
-        function openEditCellModal(slot, activity) {
-            const header = document.getElementById('app-modal-header');
-            const body = document.getElementById('app-modal-body');
-            const confirmBtn = document.getElementById('app-modal-confirm');
-            header.textContent = "✏️ 編輯行程內容"; confirmBtn.className = "modal-btn confirm";
-            body.innerHTML = `
-                <label>行程主題名稱</label><input type="text" id="m-cell-name" value="${activity.name || ''}">
-                <label>詳細備忘內容</label><input type="text" id="m-cell-detail" value="${activity.detail || ''}">
-                <label>方塊顯示色彩</label><input type="color" id="m-cell-color" value="${activity.color || '#3b82f6'}" style="width:100%; height:40px; padding:0; border:none; cursor:pointer; background:none;">
+      const updateStatus = (msg) => {
+        document.getElementById("sync-status").textContent = msg;
+      };
+      function generateId() {
+        return "id_" + Math.random().toString(36).substr(2, 9);
+      }
+
+      function closeModal() {
+        document.getElementById("app-modal").classList.remove("open");
+        modalCallback = null;
+      }
+
+      document
+        .getElementById("app-modal-cancel")
+        .addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          closeModal();
+        });
+
+      document
+        .getElementById("app-modal-confirm")
+        .addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          if (modalCallback) {
+            const runCallback = modalCallback;
+            closeModal();
+            setTimeout(() => {
+              runCallback();
+            }, 30);
+          }
+        });
+
+      function openEditCellModal(slot, activity) {
+        const header = document.getElementById("app-modal-header");
+        const body = document.getElementById("app-modal-body");
+        const confirmBtn = document.getElementById("app-modal-confirm");
+        header.textContent = "✏️ 編輯行程內容";
+        confirmBtn.className = "modal-btn confirm";
+        body.innerHTML = `
+                <label>行程主題名稱</label><input type="text" id="m-cell-name" value="${
+                  activity.name || ""
+                }">
+                <label>詳細備忘內容</label><input type="text" id="m-cell-detail" value="${
+                  activity.detail || ""
+                }">
+                <label>方塊顯示色彩</label><input type="color" id="m-cell-color" value="${
+                  activity.color || "#3b82f6"
+                }" style="width:100%; height:40px; padding:0; border:none; cursor:pointer; background:none;">
             `;
-            modalCallback = () => {
-                activity.name = document.getElementById('m-cell-name').value.trim();
-                activity.detail = document.getElementById('m-cell-detail').value.trim();
-                activity.color = document.getElementById('m-cell-color').value;
-                initTableRows(); saveDataToCloud(); closeModal();
-            };
-            document.getElementById('app-modal').classList.add('open');
-        }
+        modalCallback = () => {
+          activity.name = document.getElementById("m-cell-name").value.trim();
+          activity.detail = document
+            .getElementById("m-cell-detail")
+            .value.trim();
+          activity.color = document.getElementById("m-cell-color").value;
+          selectedActivityId = null;
+          initTableRows();
+          saveDataToCloud();
+        };
+        document.getElementById("app-modal").classList.add("open");
+      }
 
-        function openEditModuleModal(m, index) {
-            const header = document.getElementById('app-modal-header');
-            const body = document.getElementById('app-modal-body');
-            const confirmBtn = document.getElementById('app-modal-confirm');
-            header.textContent = "✏️ 編輯模塊庫項目"; confirmBtn.className = "modal-btn confirm";
-            body.innerHTML = `
-                <label>模塊庫名稱</label><input type="text" id="m-mod-name" value="${m.text || ''}">
-                <label>預設詳細備忘</label><input type="text" id="m-mod-detail" value="${m.detail || ''}">
-                <label>預設顯示色彩</label><input type="color" id="m-mod-color" value="${m.color || '#3b82f6'}" style="width:100%; height:40px; padding:0; border:none; cursor:pointer; background:none;">
+      function openEditModuleModal(m, index) {
+        const header = document.getElementById("app-modal-header");
+        const body = document.getElementById("app-modal-body");
+        const confirmBtn = document.getElementById("app-modal-confirm");
+        header.textContent = "✏️ 編輯模塊設定";
+        confirmBtn.className = "modal-btn confirm";
+        body.innerHTML = `
+                <label>模塊主題名稱</label><input type="text" id="m-mod-name" value="${
+                  m.text || ""
+                }">
+                <label>預設詳細備忘</label><input type="text" id="m-mod-detail" value="${
+                  m.detail || ""
+                }">
+                <label>預設顯示色彩</label><input type="color" id="m-mod-color" value="${
+                  m.color || "#3b82f6"
+                }" style="width:100%; height:40px; padding:0; border:none; cursor:pointer; background:none;">
             `;
-            modalCallback = () => {
-                const name = document.getElementById('m-mod-name').value.trim();
-                if (!name) return;
-                travelData.modules[index] = { text: name, detail: document.getElementById('m-mod-detail').value.trim(), color: document.getElementById('m-mod-color').value };
-                renderModules(); saveDataToCloud(); closeModal();
-            };
-            document.getElementById('app-modal').classList.add('open');
-        }
+        modalCallback = () => {
+          const name = document.getElementById("m-mod-name").value.trim();
+          if (!name) return;
+          travelData.modules[index] = {
+            text: name,
+            detail: document.getElementById("m-mod-detail").value.trim(),
+            color: document.getElementById("m-mod-color").value,
+          };
+          renderModules();
+          saveDataToCloud();
+        };
+        document.getElementById("app-modal").classList.add("open");
+      }
 
-        function openConfirmModal(text, onConfirm, isDanger = false) {
-            const header = document.getElementById('app-modal-header');
-            const body = document.getElementById('app-modal-body');
-            const confirmBtn = document.getElementById('app-modal-confirm');
-            header.textContent = "⚠️ 請確認操作"; confirmBtn.className = isDanger ? "modal-btn danger" : "modal-btn confirm";
-            body.innerHTML = `<p style="margin:0; color:#475569; font-size:0.95em; line-height:1.5; text-align:left;">${text}</p>`;
-            modalCallback = () => { onConfirm(); closeModal(); };
-            document.getElementById('app-modal').classList.add('open');
-        }
+      function openConfirmModal(text, onConfirm, isDanger = false) {
+        const header = document.getElementById("app-modal-header");
+        const body = document.getElementById("app-modal-body");
+        const confirmBtn = document.getElementById("app-modal-confirm");
+        header.textContent = "⚠️ 請確認操作";
+        confirmBtn.className = isDanger
+          ? "modal-btn danger"
+          : "modal-btn confirm";
+        body.innerHTML = `<p style="margin:0; color:#475569; font-size:0.95em; line-height:1.5; text-align:left;">${text}</p>`;
+        modalCallback = onConfirm;
+        document.getElementById("app-modal").classList.add("open");
+      }
 
-        function openResetModal() {
-            const header = document.getElementById('app-modal-header');
-            const body = document.getElementById('app-modal-body');
-            const confirmBtn = document.getElementById('app-modal-confirm');
-            header.textContent = "🔒 全域強制清除清洗"; confirmBtn.className = "modal-btn danger";
-            body.innerHTML = `
-                <p style="margin:0 0 10px 0; color:#ef4444; font-size:0.9em; font-weight:600; text-align:left;">注意：此操作將徹底抹除所有行程與設定！</p>
+      function openResetModal() {
+        const header = document.getElementById("app-modal-header");
+        const body = document.getElementById("app-modal-body");
+        const confirmBtn = document.getElementById("app-modal-confirm");
+        header.textContent = "🔒 強制重設資料庫";
+        confirmBtn.className = "modal-btn danger";
+        body.innerHTML = `
+                <p style="margin:0 0 10px 0; color:#ef4444; font-size:0.9em; font-weight:600; text-align:left;">警報：此動作將完全抹除雲端所有天數的行程數據！</p>
                 <label>請輸入管理授權密碼：</label><input type="password" id="m-reset-pwd" placeholder="請輸入密碼">
             `;
-            modalCallback = () => {
-                if (document.getElementById('m-reset-pwd').value !== "88888888") {
-                    closeModal(); setTimeout(() => openConfirmModal("❌ 授權密碼錯誤，拒絕重設！", ()=>{}), 200); return;
-                }
-                travelData = { modules: [...DEFAULT_MODULES], day1: [], day2: [] };
-                validateAndRepairData(); switchDayView(1); saveDataToCloud(); closeModal();
-                updateStatus("🔄 全域數據架構已徹底清洗完畢。");
-            };
-            document.getElementById('app-modal').classList.add('open');
+        modalCallback = () => {
+          if (document.getElementById("m-reset-pwd").value !== "88888888") {
+            setTimeout(
+              () => openConfirmModal("❌ 密碼錯誤，拒絕執行！", () => {}),
+              200
+            );
+            return;
+          }
+          travelData = { modules: [...DEFAULT_MODULES], day1: [], day2: [] };
+          validateAndRepairData();
+          initTableRows();
+          renderModules();
+          saveDataToCloud();
+          updateStatus("🔄 資料庫已成功回歸初始結構。");
+        };
+        document.getElementById("app-modal").classList.add("open");
+      }
+
+      function switchDay(dayNum) {
+        currentDay = dayNum;
+        document.getElementById(
+          "column-header"
+        ).textContent = `Day ${dayNum} 行程 (可納2個方塊)`;
+        document
+          .querySelectorAll(".tab-container .tab-btn")
+          .forEach((b) => b.classList.remove("active"));
+        document.getElementById(`btn-day${dayNum}`).classList.add("active");
+        selectedActivityId = null;
+        initTableRows();
+      }
+
+      function validateAndRepairData() {
+        if (!travelData || typeof travelData !== "object") {
+          travelData = { modules: [...DEFAULT_MODULES], day1: [], day2: [] };
+        }
+        if (
+          !travelData.modules ||
+          !Array.isArray(travelData.modules) ||
+          travelData.modules.length === 0
+        ) {
+          travelData.modules = [...DEFAULT_MODULES];
+        } else {
+          travelData.modules = travelData.modules
+            .map((m) =>
+              m && m.text
+                ? { text: m.text, color: m.color, detail: m.detail || "" }
+                : null
+            )
+            .filter(Boolean);
         }
 
-        function switchDayView(dayNum) {
-            currentDay = dayNum;
-            document.getElementById('column-header').textContent = `Day ${dayNum} 行程 (可納2個方塊)`;
-            document.getElementById('btn-day1').classList.toggle('active', dayNum === 1);
-            document.getElementById('btn-day2').classList.toggle('active', dayNum === 2);
+        const fixSlots = (arr) => {
+          if (!Array.isArray(arr) || arr.length === 0) {
+            return DEFAULT_TIME_SLOTS.map((t) => ({
+              id: generateId(),
+              time: t,
+              activities: [],
+            }));
+          }
+          return arr.map((slot) => {
+            if (!slot.id) slot.id = generateId();
+            if (!slot.activities) slot.activities = [];
+            return slot;
+          });
+        };
+
+        travelData.day1 = fixSlots(travelData.day1);
+        travelData.day2 = fixSlots(travelData.day2);
+      }
+
+      function safeMergeData(incoming) {
+        if (!incoming || typeof incoming !== "object") return false;
+        let oldStr = JSON.stringify(travelData);
+        if (incoming.modules && Array.isArray(incoming.modules))
+          travelData.modules = incoming.modules;
+        if (incoming.day1 && Array.isArray(incoming.day1))
+          travelData.day1 = incoming.day1;
+        if (incoming.day2 && Array.isArray(incoming.day2))
+          travelData.day2 = incoming.day2;
+        validateAndRepairData();
+        return oldStr !== JSON.stringify(travelData) ? "rebuild" : true;
+      }
+
+      function initTableRows() {
+        const tbody = document.getElementById("schedule-body");
+        if (!tbody) return;
+        tbody.innerHTML = "";
+        let slots = currentDay === 1 ? travelData.day1 : travelData.day2;
+
+        slots.forEach((slot) => {
+          const tr = document.createElement("tr");
+          const tdTime = document.createElement("td");
+          tdTime.className = "time-col";
+          const wrapper = document.createElement("div");
+          wrapper.className = "time-cell-wrapper";
+
+          const input = document.createElement("input");
+          input.type = "time";
+          input.className = "time-input";
+          input.value = slot.time;
+          input.addEventListener("change", (e) => {
+            slot.time = e.target.value;
+            slots.sort((a, b) => a.time.localeCompare(b.time));
             initTableRows();
-        }
+            saveDataToCloud();
+          });
 
-        function validateAndRepairData() {
-            if (!travelData || typeof travelData !== 'object') { travelData = { modules: [...DEFAULT_MODULES], day1: [], day2: [] }; }
-            if (!travelData.modules || !Array.isArray(travelData.modules) || travelData.modules.length === 0) {
-                travelData.modules = [...DEFAULT_MODULES];
-            } else {
-                travelData.modules = travelData.modules.map(m => m && m.text ? { text: m.text, color: m.color, detail: m.detail || "" } : null).filter(Boolean);
-            }
-            
-            const upgradeToMultiBlocks = (slotsArray) => {
-                if (!Array.isArray(slotsArray)) return [];
-                return slotsArray.map(slot => {
-                    if (!slot.id) slot.id = generateId();
-                    if (!slot.activities) {
-                        slot.activities = [];
-                        if (slot.name) {
-                            slot.activities.push({ id: generateId(), name: slot.name, detail: slot.detail || "", color: slot.color || "#3b82f6" });
-                        }
-                    }
-                    delete slot.name; delete slot.detail; delete slot.color;
-                    return slot;
-                });
-            };
-
-            if (!travelData.day1 || !Array.isArray(travelData.day1) || travelData.day1.length === 0) {
-                travelData.day1 = DEFAULT_TIME_SLOTS.map(t => ({ id: generateId(), time: t, activities: [] }));
-            } else {
-                travelData.day1 = upgradeToMultiBlocks(travelData.day1);
-            }
-            if (!travelData.day2 || !Array.isArray(travelData.day2) || travelData.day2.length === 0) {
-                travelData.day2 = DEFAULT_TIME_SLOTS.map(t => ({ id: generateId(), time: t, activities: [] }));
-            } else {
-                travelData.day2 = upgradeToMultiBlocks(travelData.day2);
-            }
-        }
-
-        function safeMergeData(incoming) {
-            if (!incoming || typeof incoming !== 'object') return false;
-            let oldD1 = JSON.stringify(travelData.day1); let oldD2 = JSON.stringify(travelData.day2);
-            if (incoming.modules && Array.isArray(incoming.modules)) { travelData.modules = incoming.modules; }
-            if (incoming.day1 && Array.isArray(incoming.day1)) { travelData.day1 = incoming.day1; }
-            if (incoming.day2 && Array.isArray(incoming.day2)) { travelData.day2 = incoming.day2; }
-            validateAndRepairData();
-            return (oldD1 !== JSON.stringify(travelData.day1) || oldD2 !== JSON.stringify(travelData.day2)) ? "rebuild" : true;
-        }
-
-        function initTableRows() {
-            const tbody = document.getElementById('schedule-body'); if (!tbody) return; tbody.innerHTML = '';
-            let currentSlots = currentDay === 1 ? travelData.day1 : travelData.day2;
-
-            currentSlots.forEach((slot) => {
-                const tr = document.createElement('tr');
-                const tdTime = document.createElement('td'); tdTime.className = 'time-col';
-                const wrapper = document.createElement('div'); wrapper.className = 'time-cell-wrapper';
-
-                const input = document.createElement('input'); input.type = 'time'; input.className = 'time-input';
-                input.value = slot.time;
-                input.addEventListener('change', (e) => { 
-                    slot.time = e.target.value; 
-                    currentSlots.sort((a, b) => a.time.localeCompare(b.time));
-                    initTableRows(); saveDataToCloud(); 
-                });
-
-                const delRowBtn = document.createElement('button'); delRowBtn.className = 'del-row-btn'; delRowBtn.innerHTML = '🗑️';
-                delRowBtn.addEventListener('click', () => {
-                    openConfirmModal(`確定要刪除 Day ${currentDay} 的這個時間點格子嗎？<br>這不會影響到另一天的任何行程！`, () => {
-                        if (currentDay === 1) travelData.day1 = travelData.day1.filter(s => s.id !== slot.id);
-                        else travelData.day2 = travelData.day2.filter(s => s.id !== slot.id);
-                        initTableRows(); saveDataToCloud();
-                    });
-                });
-
-                wrapper.appendChild(input); wrapper.appendChild(delRowBtn);
-                tdTime.appendChild(wrapper); tr.appendChild(tdTime);
-
-                const td = document.createElement('td'); td.className = 'cell'; td.id = `cell-${slot.id}`;
-                
-                if (slot.activities && slot.activities.length > 0) {
-                    td.classList.remove('empty');
-                    slot.activities.forEach((act) => {
-                        const block = document.createElement('div');
-                        block.className = 'sub-block';
-                        block.style.backgroundColor = act.color || '#3b82f6';
-                        block.innerHTML = act.detail ? `<div style="font-size: 0.72em; opacity: 0.85; margin-bottom:1px;">${act.name}</div><div style="font-size: 0.85em;">${act.detail}</div>` : `<div style="font-size: 0.85em;">${act.name}</div>`;
-                        
-                        bindBlockDragAndClickEvents(block, slot, act);
-                        td.appendChild(block);
-                    });
-                } else {
-                    td.classList.add('empty');
-                }
-
-                td.addEventListener('click', (e) => {
-                    if (e.target === td || td.classList.contains('empty')) {
-                        if (currentText === "__eraser__") {
-                            // 橡皮擦不動作
-                        } else if (currentText !== "" && currentColor !== "") {
-                            if (slot.activities.length < 2) {
-                                slot.activities.push({ id: generateId(), name: currentText, detail: currentDetail, color: currentColor });
-                                initTableRows(); saveDataToCloud();
-                            } else {
-                                updateStatus("⚠️ 單個時段格子上限為 2 個行程方塊唷！");
-                            }
-                        }
-                    }
-                });
-
-                tr.appendChild(td); tbody.appendChild(tr);
+          const delRowBtn = document.createElement("button");
+          delRowBtn.className = "del-row-btn";
+          delRowBtn.innerHTML = "🗑️";
+          delRowBtn.addEventListener("click", () => {
+            openConfirmModal("確定要刪除此時間點格子嗎？", () => {
+              if (currentDay === 1) {
+                travelData.day1 = travelData.day1.filter(
+                  (s) => s.id !== slot.id
+                );
+              } else {
+                travelData.day2 = travelData.day2.filter(
+                  (s) => s.id !== slot.id
+                );
+              }
+              initTableRows();
+              saveDataToCloud();
             });
-        }
+          });
 
-        function bindBlockDragAndClickEvents(block, slot, act) {
-            const handleStart = (e) => {
-                if (e.type === 'mousedown' && e.button !== 0) return;
-                const pos = getCoords(e); let startXPos = pos.x; let startYPos = pos.y; let isMoveThresholdPassed = false;
-                
-                const handleMove = (moveEvent) => {
-                    const movePos = getCoords(moveEvent);
-                    const dist = Math.sqrt(Math.pow(movePos.x - startXPos, 2) + Math.pow(movePos.y - startYPos, 2));
-                    if (dist > 8 && !isMoveThresholdPassed) {
-                        isMoveThresholdPassed = true; cleanup();
-                        if (moveEvent.cancelable) moveEvent.preventDefault();
-                        activateDrag(block, act.name, act.color, false, act.detail, slot.id, act.id, moveEvent);
+          wrapper.appendChild(input);
+          wrapper.appendChild(delRowBtn);
+          tdTime.appendChild(wrapper);
+          tr.appendChild(tdTime);
+
+          const td = document.createElement("td");
+          td.style.padding = "0";
+          const cellFlex = document.createElement("div");
+          cellFlex.className = "cell-inner-flex";
+          cellFlex.id = `cell-${slot.id}`;
+
+          if (slot.activities && slot.activities.length > 0) {
+            slot.activities.forEach((act) => {
+              const block = document.createElement("div");
+              block.className = "sub-block";
+              block.style.backgroundColor = act.color || "#3b82f6";
+              block.innerHTML = act.detail
+                ? `<div style="font-size: 0.72em; opacity: 0.85; margin-bottom:1px;">${act.name}</div><div style="font-size: 0.85em;">${act.detail}</div>`
+                : `<div style="font-size: 0.85em;">${act.name}</div>`;
+
+              if (act.id === selectedActivityId) {
+                block.classList.add("selected-act");
+              }
+
+              const setupBlockPointer = (e) => {
+                if (e.pointerType === "mouse" && e.button !== 0) return;
+                isPointerDown = true;
+                isLongPressActive = false;
+                const startX = e.clientX;
+                const startY = e.clientY;
+
+                longPressTimer = setTimeout(() => {
+                  isLongPressActive = true;
+                  if (navigator.vibrate) navigator.vibrate(50);
+
+                  document
+                    .querySelectorAll(".sub-block")
+                    .forEach((b) => b.classList.remove("selected-act"));
+                  block.classList.add("selected-act");
+                  selectedActivityId = act.id;
+
+                  cleanupListeners();
+                  activateDrag(
+                    block,
+                    act.name,
+                    act.color,
+                    false,
+                    act.detail,
+                    slot.id,
+                    act.id,
+                    e
+                  );
+                }, 600);
+
+                const moveHandler = (me) => {
+                  const dist = Math.sqrt(
+                    Math.pow(me.clientX - startX, 2) +
+                      Math.pow(me.clientY - startY, 2)
+                  );
+                  if (dist > 8 && !isLongPressActive)
+                    clearTimeout(longPressTimer);
+                };
+
+                const upHandler = () => {
+                  clearTimeout(longPressTimer);
+                  cleanupListeners();
+
+                  if (!isLongPressActive && isPointerDown) {
+                    isPointerDown = false;
+
+                    if (currentText && currentText !== "__eraser__") {
+                      act.name = currentText;
+                      act.color = currentColor;
+                      act.detail = currentDetail;
+                      selectedActivityId = null;
+                      initTableRows();
+                      saveDataToCloud();
+                      return;
+                    } else if (currentText === "__eraser__") {
+                      slot.activities = slot.activities.filter(
+                        (a) => a.id !== act.id
+                      );
+                      initTableRows();
+                      saveDataToCloud();
+                      return;
                     }
-                };
-                const handleEnd = (endEvent) => {
-                    cleanup();
-                    if (!isMoveThresholdPassed) {
-                        if (currentText === "__eraser__") {
-                            slot.activities = slot.activities.filter(a => a.id !== act.id);
-                            initTableRows(); saveDataToCloud();
-                            currentText = ""; currentColor = ""; currentDetail = ""; updateActiveModuleUI();
-                        } else if (currentText !== "") {
-                            currentText = ""; currentColor = ""; currentDetail = ""; updateActiveModuleUI();
-                        } else {
-                            openEditCellModal(slot, act);
-                        }
-                    }
-                };
-                const cleanup = () => {
-                    document.removeEventListener('mousemove', handleMove); document.removeEventListener('mouseup', handleEnd);
-                    document.removeEventListener('touchmove', handleMove); document.removeEventListener('touchend', handleEnd);
-                };
-                if (e.type === 'mousedown') {
-                    document.addEventListener('mousemove', handleMove); document.addEventListener('mouseup', handleEnd);
-                } else {
-                    document.addEventListener('touchmove', handleMove, { passive: false }); document.addEventListener('touchend', handleEnd);
-                }
-            };
-            block.addEventListener('mousedown', handleStart); block.addEventListener('touchstart', handleStart, { passive: true });
-            block.addEventListener('dblclick', (e) => { e.stopPropagation(); openEditCellModal(slot, act); });
-        }
 
-        function renderModules() {
-            const container = document.getElementById('module-list'); if (!container) return; container.innerHTML = '';
-            travelData.modules.forEach((m, index) => {
-                if (!m || !m.text) return;
-                const div = document.createElement('div'); div.className = 'module'; div.style.backgroundColor = m.color || '#3b82f6'; div.setAttribute('data-text', m.text);
-                const infoWrapper = document.createElement('div'); infoWrapper.style.display = 'flex'; infoWrapper.style.flexDirection = 'column'; infoWrapper.style.alignItems = 'center';
-                infoWrapper.innerHTML = m.detail ? `<span style="font-size:0.95em;">${m.text}</span><span style="font-size:0.75em; font-weight:normal; opacity:0.85; margin-top:2px;">${m.detail}</span>` : `<span>${m.text}</span>`;
-                div.appendChild(infoWrapper);
-
-                const btnGroup = document.createElement('div'); btnGroup.className = 'mod-btn-group';
-                const stopBubble = (e) => e.stopPropagation(); btnGroup.addEventListener('mousedown', stopBubble); btnGroup.addEventListener('touchstart', stopBubble);
-
-                const editModBtn = document.createElement('span'); editModBtn.className = 'edit-mod-btn'; editModBtn.innerHTML = '✏️';
-                editModBtn.addEventListener('click', (e) => { e.stopPropagation(); openEditModuleModal(m, index); });
-
-                const delBtn = document.createElement('span'); delBtn.className = 'del-mod-btn'; delBtn.innerHTML = '&times;';
-                delBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    openConfirmModal(`確定要刪除「${m.text}」這個模塊在庫中的設定嗎？`, () => {
-                        travelData.modules.splice(index, 1);
-                        if (currentText === m.text) { currentText = ""; currentColor = ""; currentDetail = ""; }
-                        renderModules(); saveDataToCloud();
-                    });
-                });
-
-                btnGroup.appendChild(editModBtn); btnGroup.appendChild(delBtn); div.appendChild(btnGroup);
-                bindDragEvents(div, m.text, m.color, m.detail || "", false); container.appendChild(div);
-            });
-
-            const eraser = document.createElement('div'); eraser.className = 'module eraser'; eraser.textContent = "🧹 清除";
-            bindDragEvents(eraser, "", "", "", true); container.appendChild(eraser); updateActiveModuleUI();
-        }
-
-        function updateActiveModuleUI() {
-            document.querySelectorAll('.module').forEach(el => el.classList.remove('active'));
-            const container = document.getElementById('module-list'); if(!container) return;
-            container.querySelectorAll('.module').forEach(el => {
-                if(el.classList.contains('eraser') && currentText === "__eraser__") el.classList.add('active');
-                else if (!el.classList.contains('eraser') && el.getAttribute('data-text') === currentText) el.classList.add('active');
-            });
-        }
-
-        function getCoords(e) {
-            if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            if (e.changedTouches && e.changedTouches.length > 0) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
-            return { x: e.clientX, y: e.clientY };
-        }
-
-        function activateDrag(element, text, color, isEraser, detail = "", srcSlotId = null, srcActivityId = null, initialEvent) {
-            isDragging = true; 
-            draggedData = { text: isEraser ? "__eraser__" : text, color: color, detail: detail, srcSlotId: srcSlotId, srcActivityId: srcActivityId };
-            const pos = getCoords(initialEvent); startX = pos.x; startY = pos.y;
-            
-            dragPreviewEl = document.createElement('div'); dragPreviewEl.className = 'module';
-            dragPreviewEl.style.backgroundColor = color || '#3b82f6'; dragPreviewEl.textContent = isEraser ? "🧹 清除" : text;
-            dragPreviewEl.style.position = 'fixed'; dragPreviewEl.style.zIndex = '10000'; dragPreviewEl.style.opacity = '0.85';
-            dragPreviewEl.style.pointerEvents = 'none'; dragPreviewEl.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)';
-            document.body.appendChild(dragPreviewEl); updatePreviewPos(pos.x, pos.y);
-
-            if (initialEvent.type.startsWith('mouse')) {
-                document.addEventListener('mousemove', onGlobalMove); document.addEventListener('mouseup', onGlobalEnd);
-            } else {
-                document.addEventListener('touchmove', onGlobalMove, { passive: false }); document.addEventListener('touchend', onGlobalEnd); document.addEventListener('touchcancel', onGlobalEnd);
-            }
-        }
-
-        function bindDragEvents(element, text, color, detail = "", isEraser = false) {
-            element.addEventListener('mousedown', (e) => { if (e.button !== 0 || e.target.classList.contains('edit-mod-btn') || e.target.classList.contains('del-mod-btn')) return; e.preventDefault(); activateDrag(element, text, color, isEraser, detail, null, null, e); });
-            element.addEventListener('touchstart', (e) => { if (e.target.classList.contains('edit-mod-btn') || e.target.classList.contains('del-mod-btn')) return; e.preventDefault(); activateDrag(element, text, color, isEraser, detail, null, null, e); }, { passive: false });
-        }
-
-        function updatePreviewPos(x, y) {
-            if (!dragPreviewEl) return;
-            dragPreviewEl.style.left = (x - dragPreviewEl.offsetWidth / 2) + 'px'; dragPreviewEl.style.top = (y - dragPreviewEl.offsetHeight / 2) + 'px';
-        }
-
-        function onGlobalMove(e) {
-            if (!isDragging) return; if (e.type === 'touchmove') e.preventDefault();
-            const pos = getCoords(e); updatePreviewPos(pos.x, pos.y);
-            let targetEl = document.elementFromPoint(pos.x, pos.y); let cell = targetEl ? targetEl.closest('.cell') : null;
-            if (cell !== lastHoveredCell) {
-                if (lastHoveredCell) lastHoveredCell.classList.remove('drag-over');
-                if (cell) cell.classList.add('drag-over');
-                lastHoveredCell = cell;
-            }
-        }
-
-        function onGlobalEnd(e) {
-            if (!isDragging) return; isDragging = false; if (lastHoveredCell) lastHoveredCell.classList.remove('drag-over');
-            const pos = getCoords(e); let targetEl = document.elementFromPoint(pos.x, pos.y); let cell = targetEl ? targetEl.closest('.cell') : null;
-            let moveDist = Math.sqrt(Math.pow(pos.x - startX, 2) + Math.pow(pos.y - startY, 2));
-            
-            let currentSlots = currentDay === 1 ? travelData.day1 : travelData.day2;
-
-            if (moveDist < 8 && !draggedData.srcSlotId) {
-                if (draggedData.text === "__eraser__") { currentText = "__eraser__"; currentColor = ""; currentDetail = ""; }
-                else { currentColor = draggedData.color; currentText = draggedData.text; currentDetail = draggedData.detail || ""; }
-                updateActiveModuleUI();
-            } else if (cell && draggedData) {
-                const targetId = cell.id.replace('cell-', '');
-                let targetSlot = currentSlots.find(s => s.id === targetId);
-
-                if (targetSlot) {
-                    if (draggedData.text === "__eraser__") { 
-                        targetSlot.activities = [];
-                        initTableRows(); saveDataToCloud();
+                    if (selectedActivityId === act.id) {
+                      openEditCellModal(slot, act);
                     } else {
-                        if (draggedData.srcSlotId) {
-                            let srcSlot = currentSlots.find(s => s.id === draggedData.srcSlotId);
-                            if (srcSlot) {
-                                if (srcSlot.id === targetSlot.id) {
-                                    initTableRows();
-                                } else if (targetSlot.activities.length < 2) {
-                                    let idx = srcSlot.activities.findIndex(a => a.id === draggedData.srcActivityId);
-                                    if (idx !== -1) {
-                                        let targetAct = srcSlot.activities.splice(idx, 1)[0];
-                                        targetSlot.activities.push(targetAct);
-                                        initTableRows(); saveDataToCloud();
-                                    }
-                                } else {
-                                    initTableRows();
-                                    updateStatus("⚠️ 目標時段格子已經塞滿 2 個行程囉！");
-                                }
-                            }
-                        } else {
-                            if (targetSlot.activities.length < 2) {
-                                targetSlot.activities.push({ id: generateId(), name: draggedData.text, color: draggedData.color, detail: draggedData.detail });
-                                initTableRows(); saveDataToCloud();
-                            } else {
-                                updateStatus("⚠️ 該時段格子已經滿 2 個行程囉！");
-                            }
-                        }
+                      selectedActivityId = act.id;
+                      document
+                        .querySelectorAll(".sub-block")
+                        .forEach((b) => b.classList.remove("selected-act"));
+                      block.classList.add("selected-act");
                     }
-                }
-                currentText = ""; currentColor = ""; currentDetail = ""; updateActiveModuleUI();
-            } else if (!cell && draggedData && draggedData.srcSlotId) {
-                const container = document.querySelector('.schedule-container');
-                let shouldDelete = true;
-                
-                if (container && dragPreviewEl) {
-                    const containerRect = container.getBoundingClientRect();
-                    const previewRect = dragPreviewEl.getBoundingClientRect();
-                    
-                    const xOverlap = Math.max(0, Math.min(containerRect.right, previewRect.right) - Math.max(containerRect.left, previewRect.left));
-                    const yOverlap = Math.max(0, Math.min(containerRect.bottom, previewRect.bottom) - Math.max(containerRect.top, previewRect.top));
-                    
-                    const overlapArea = xOverlap * yOverlap;
-                    const previewArea = previewRect.width * previewRect.height;
-                    
-                    if (overlapArea >= previewArea * 0.5) { shouldDelete = false; }
-                }
+                  }
+                };
 
-                if (shouldDelete) {
-                    let srcSlot = currentSlots.find(s => s.id === draggedData.srcSlotId);
-                    if (srcSlot) {
-                        srcSlot.activities = srcSlot.activities.filter(a => a.id !== draggedData.srcActivityId);
-                        initTableRows(); saveDataToCloud();
-                    }
-                } else {
-                    initTableRows();
-                }
-                currentText = ""; currentColor = ""; currentDetail = ""; updateActiveModuleUI();
-            }
+                // ✨ 核心修復：若是手指滑動網頁觸發的 Pointer 取消，安全清理計時器，不進行任何選取行為
+                const cancelHandler = () => {
+                  clearTimeout(longPressTimer);
+                  isPointerDown = false;
+                  cleanupListeners();
+                };
 
-            if (dragPreviewEl) { dragPreviewEl.remove(); dragPreviewEl = null; }
-            draggedData = null; lastHoveredCell = null;
-            document.removeEventListener('mousemove', onGlobalMove); document.removeEventListener('mouseup', onGlobalEnd);
-            document.removeEventListener('touchmove', onGlobalMove); document.removeEventListener('touchend', onGlobalEnd);
-        }
+                const cleanupListeners = () => {
+                  document.removeEventListener("pointermove", moveHandler);
+                  document.removeEventListener("pointerup", upHandler);
+                  document.removeEventListener("pointercancel", cancelHandler);
+                };
 
-        document.getElementById('add-row-btn').addEventListener('click', () => {
-            const timeInput = document.getElementById('new-row-time'); const newTime = timeInput.value;
-            if (!newTime) return;
-            let currentSlots = currentDay === 1 ? travelData.day1 : travelData.day2;
-            currentSlots.push({ id: generateId(), time: newTime, activities: [] });
-            currentSlots.sort((a, b) => a.time.localeCompare(b.time));
-            initTableRows(); saveDataToCloud();
-        });
+                document.addEventListener("pointermove", moveHandler);
+                document.addEventListener("pointerup", upHandler);
+                document.addEventListener("pointercancel", cancelHandler);
+              };
 
-        document.querySelectorAll('.color-dot').forEach(dot => {
-            dot.addEventListener('click', () => {
-                document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active')); dot.classList.add('active');
-                currentColor = dot.getAttribute('data-color'); document.getElementById('new-color').value = currentColor;
+              block.addEventListener("pointerdown", setupBlockPointer);
+              cellFlex.appendChild(block);
             });
-        });
-        document.getElementById('new-color').addEventListener('input', (e) => {
-            document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active')); currentColor = e.target.value;
-        });
+          }
 
-        document.getElementById('add-btn').addEventListener('click', () => {
-            const nameInput = document.getElementById('new-name'); const name = nameInput.value.trim();
-            const detailInput = document.getElementById('new-detail'); const detail = detailInput.value.trim();
-            if (!name) return;
-            travelData.modules.push({ text: name, color: currentColor || "#22c55e", detail: detail });
-            currentText = name; currentDetail = detail; renderModules(); saveDataToCloud(); 
-            nameInput.value = ''; detailInput.value = '';
-        });
-
-        document.getElementById('reset-btn').addEventListener('click', openResetModal);
-
-        async function saveDataToCloud() {
-            try { localStorage.setItem('backup_travel_data', JSON.stringify(travelData)); } catch(e){}
-            if (!supabaseClient) return;
-            try { await supabaseClient.from('travel_schedules').upsert({ id: SCHEDULE_ID, data: travelData }); updateStatus("✅ 雲端同步完成！"); } catch (e) {}
-        }
-
-        async function loadDataFromCloud() {
-            if (!supabaseClient) return;
-            try {
-                const { data, error } = await supabaseClient.from('travel_schedules').select('data').eq('id', SCHEDULE_ID).single();
-                if (!error && data && data.data) {
-                    if (safeMergeData(data.data) === "rebuild") initTableRows();
-                    initTableRows(); renderModules(); updateStatus("✅ 雲端資料庫連線同步成功");
+          cellFlex.addEventListener("click", (e) => {
+            if (e.target === cellFlex) {
+              if (currentText && currentText !== "__eraser__") {
+                if (slot.activities.length < 2) {
+                  slot.activities.push({
+                    id: generateId(),
+                    name: currentText,
+                    detail: currentDetail,
+                    color: currentColor,
+                  });
+                  initTableRows();
+                  saveDataToCloud();
+                } else {
+                  updateStatus("⚠️ 每個時段格上限只能容納 2 個行程方塊唷！");
                 }
-            } catch(e) {}
+              }
+            }
+          });
+
+          td.appendChild(cellFlex);
+          tr.appendChild(td);
+          tbody.appendChild(tr);
+        });
+      }
+
+      function renderModules() {
+        const container = document.getElementById("module-list");
+        if (!container) return;
+        container.innerHTML = "";
+
+        travelData.modules.forEach((m, index) => {
+          if (!m || !m.text) return;
+          const div = document.createElement("div");
+          div.className = "module";
+          div.style.backgroundColor = m.color || "#3b82f6";
+          div.setAttribute("data-text", m.text);
+
+          const innerWrap = document.createElement("div");
+          innerWrap.style.display = "flex";
+          innerWrap.style.flexDirection = "column";
+          innerWrap.style.alignItems = "center";
+          innerWrap.innerHTML = m.detail
+            ? `<span style="font-size:0.95em;">${m.text}</span><span style="font-size:0.75em; font-weight:normal; opacity:0.85; margin-top:1px;">${m.detail}</span>`
+            : `<span>${m.text}</span>`;
+          div.appendChild(innerWrap);
+
+          const btnGroup = document.createElement("div");
+          btnGroup.className = "mod-btn-group";
+          const stopAction = (e) => e.stopPropagation();
+          btnGroup.addEventListener("pointerdown", stopAction);
+
+          const delBtn = document.createElement("span");
+          delBtn.className = "del-mod-btn";
+          delBtn.innerHTML = "&times;";
+          delBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openConfirmModal(`確定要將模塊「${m.text}」從清單移除嗎？`, () => {
+              travelData.modules.splice(index, 1);
+              if (currentText === m.text) {
+                currentText = "";
+                currentColor = "";
+                currentDetail = "";
+              }
+              renderModules();
+              saveDataToCloud();
+            });
+          });
+
+          btnGroup.appendChild(delBtn);
+          div.appendChild(btnGroup);
+
+          bindModulePointerEvents(
+            div,
+            m.text,
+            m.color,
+            m.detail || "",
+            false,
+            m,
+            index
+          );
+          container.appendChild(div);
+        });
+
+        const eraser = document.createElement("div");
+        eraser.className = "module eraser";
+        eraser.textContent = "🧹 清除模式";
+        bindModulePointerEvents(eraser, "", "", "", true);
+        container.appendChild(eraser);
+
+        updateActiveModuleUI();
+      }
+
+      function updateActiveModuleUI() {
+        document
+          .querySelectorAll(".module")
+          .forEach((el) => el.classList.remove("active"));
+        const container = document.getElementById("module-list");
+        if (!container) return;
+        container.querySelectorAll(".module").forEach((el) => {
+          if (el.classList.contains("eraser") && currentText === "__eraser__")
+            el.classList.add("active");
+          else if (
+            !el.classList.contains("eraser") &&
+            el.getAttribute("data-text") === currentText
+          )
+            el.classList.add("active");
+        });
+      }
+
+      function bindModulePointerEvents(
+        element,
+        text,
+        color,
+        detail = "",
+        isEraser = false,
+        m = null,
+        index = null
+      ) {
+        let moduleTimer = null;
+        let isModuleLongPress = false;
+
+        const handleStart = (e) => {
+          if (e.pointerType === "mouse" && e.button !== 0) return;
+          if (e.target.closest(".del-mod-btn")) return;
+
+          isPointerDown = true;
+          isModuleLongPress = false;
+          const startX = e.clientX;
+          const startY = e.clientY;
+          isDragActive = false;
+
+          moduleTimer = setTimeout(() => {
+            isModuleLongPress = true;
+            if (navigator.vibrate) navigator.vibrate(50);
+            unbindHandlers();
+            activateDrag(element, text, color, isEraser, detail, null, null, e);
+          }, 600);
+
+          const handleMove = (me) => {
+            const dist = Math.sqrt(
+              Math.pow(me.clientX - startX, 2) +
+                Math.pow(me.clientY - startY, 2)
+            );
+            if (dist > 8 && !isModuleLongPress) clearTimeout(moduleTimer);
+          };
+
+          const handleEnd = () => {
+            clearTimeout(moduleTimer);
+            unbindHandlers();
+
+            if (!isModuleLongPress && isPointerDown) {
+              isPointerDown = false;
+              if (isEraser) {
+                currentText = "__eraser__";
+                currentColor = "";
+                currentDetail = "";
+              } else {
+                if (currentText === text) {
+                  openEditModuleModal(m, index);
+                  return;
+                } else {
+                  currentText = text;
+                  currentColor = color;
+                  currentDetail = detail;
+                }
+              }
+              updateActiveModuleUI();
+              selectedActivityId = null;
+              document
+                .querySelectorAll(".sub-block")
+                .forEach((b) => b.classList.remove("selected-act"));
+            }
+          };
+
+          // ✨ 核心修復：若是滑動網頁（Pointer被取消），進行純清理，不干擾原生滾動，也不誤觸點擊選中
+          const handleCancel = () => {
+            clearTimeout(moduleTimer);
+            isPointerDown = false;
+            unbindHandlers();
+          };
+
+          const unbindHandlers = () => {
+            document.removeEventListener("pointermove", handleMove);
+            document.removeEventListener("pointerup", handleEnd);
+            document.removeEventListener("pointercancel", handleCancel);
+          };
+
+          document.addEventListener("pointermove", handleMove);
+          document.addEventListener("pointerup", handleEnd);
+          document.addEventListener("pointercancel", handleCancel);
+        };
+
+        element.addEventListener("pointerdown", handleStart);
+      }
+
+      function activateDrag(
+        element,
+        text,
+        color,
+        isEraser,
+        detail = "",
+        srcSlotId = null,
+        srcActivityId = null,
+        initialEvent
+      ) {
+        isDragActive = true;
+        draggedData = {
+          text: isEraser ? "__eraser__" : text,
+          color: color,
+          detail: detail,
+          srcSlotId: srcSlotId,
+          srcActivityId: srcActivityId,
+        };
+
+        // 🔒 核心優化：只有在真正長按觸發拖曳後，才動態使用 setPointerCapture 鎖定手指，防止接下來的拖曳畫面引發網頁滾動
+        if (element && initialEvent && initialEvent.pointerId !== undefined) {
+          try {
+            element.setPointerCapture(initialEvent.pointerId);
+          } catch (e) {}
         }
 
-        validateAndRepairData(); initTableRows(); renderModules();     
-        try {
-            const localBackup = localStorage.getItem('backup_travel_data');
-            if (localBackup) { if (safeMergeData(JSON.parse(localBackup)) === "rebuild") initTableRows(); initTableRows(); renderModules(); }
-        } catch(e){}
+        if (!srcSlotId && element) {
+          element.style.opacity = "0.3";
+          activeModuleElement = element;
+        }
 
-        function injectSupabaseSDK() {
-            updateStatus("⏳ 雲端管道同步中...");
-            const script = document.createElement('script'); script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"; script.async = true;
-            script.onload = function() {
-                try {
-                    if (window.supabase) {
-                        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); loadDataFromCloud();
-                        setInterval(async () => {
-                            if (!supabaseClient || document.activeElement.tagName === 'INPUT' || isDragging || document.getElementById('app-modal').classList.contains('open')) return;
-                            try {
-                                const { data } = await supabaseClient.from('travel_schedules').select('data').eq('id', SCHEDULE_ID).single();
-                                if (data && data.data) { if (safeMergeData(data.data) === "rebuild") initTableRows(); initTableRows(); renderModules(); }
-                            } catch (e) {}
-                        }, 4000);
+        let deleteZone = document.getElementById("delete-zone");
+        if (deleteZone) deleteZone.classList.add("show");
+
+        dragPreviewEl = document.createElement("div");
+        dragPreviewEl.className = "module";
+        dragPreviewEl.style.backgroundColor = color || "#3b82f6";
+        dragPreviewEl.textContent = isEraser ? "🧹 清除模式" : text;
+        dragPreviewEl.style.position = "fixed";
+        dragPreviewEl.style.zIndex = "30000";
+        dragPreviewEl.style.opacity = "0.9";
+        dragPreviewEl.style.pointerEvents = "none";
+        dragPreviewEl.style.boxShadow = "0 8px 20px rgba(0,0,0,0.15)";
+        document.body.appendChild(dragPreviewEl);
+
+        updatePreviewPos(initialEvent.clientX, initialEvent.clientY);
+
+        document.addEventListener("pointermove", onGlobalMove);
+        document.addEventListener("pointerup", onGlobalEnd);
+        document.addEventListener("pointercancel", onGlobalEnd);
+      }
+
+      function updatePreviewPos(x, y) {
+        if (!dragPreviewEl) return;
+        dragPreviewEl.style.left = x - dragPreviewEl.offsetWidth / 2 + "px";
+        dragPreviewEl.style.top = y - dragPreviewEl.offsetHeight / 2 + "px";
+      }
+
+      function onGlobalMove(e) {
+        if (!isDragActive) return;
+        updatePreviewPos(e.clientX, e.clientY);
+
+        let target = document.elementFromPoint(e.clientX, e.clientY);
+        let deleteZone = document.getElementById("delete-zone");
+        if (deleteZone) {
+          let delRect = deleteZone.getBoundingClientRect();
+          if (
+            e.clientX >= delRect.left &&
+            e.clientX <= delRect.right &&
+            e.clientY >= delRect.top &&
+            e.clientY <= delRect.bottom
+          ) {
+            deleteZone.classList.add("drag-over");
+          } else {
+            deleteZone.classList.remove("drag-over");
+          }
+        }
+
+        let cell = target ? target.closest(".cell-inner-flex") : null;
+        if (cell !== lastHoveredCell) {
+          if (lastHoveredCell) lastHoveredCell.classList.remove("drag-over");
+          if (cell) cell.classList.add("drag-over");
+          lastHoveredCell = cell;
+        }
+      }
+
+      function onGlobalEnd(e) {
+        let deleteZone = document.getElementById("delete-zone");
+        if (deleteZone) deleteZone.classList.remove("show", "drag-over");
+
+        if (!isDragActive) {
+          isPointerDown = false;
+          if (draggedData) {
+            if (draggedData.text === "__eraser__") {
+              currentText = "__eraser__";
+              currentColor = "";
+              currentDetail = "";
+            } else if (!draggedData.srcSlotId) {
+              currentText = draggedData.text;
+              currentColor = draggedData.color;
+              currentDetail = draggedData.detail || "";
+            }
+            updateActiveModuleUI();
+          }
+          if (dragPreviewEl) {
+            dragPreviewEl.remove();
+            dragPreviewEl = null;
+          }
+          if (activeModuleElement) {
+            activeModuleElement.style.opacity = "1";
+            activeModuleElement = null;
+          }
+          return;
+        }
+
+        isDragActive = false;
+        isPointerDown = false;
+        if (lastHoveredCell) lastHoveredCell.classList.remove("drag-over");
+
+        let target = document.elementFromPoint(e.clientX, e.clientY);
+        let cell = target ? target.closest(".cell-inner-flex") : null;
+        let slots = currentDay === 1 ? travelData.day1 : travelData.day2;
+
+        if (draggedData && draggedData.srcSlotId) {
+          if (cell) {
+            const tId = cell.id.replace("cell-", "");
+            let targetSlot = slots.find((s) => s.id === tId);
+
+            if (targetSlot) {
+              if (draggedData.text === "__eraser__") {
+                targetSlot.activities = [];
+                initTableRows();
+                saveDataToCloud();
+              } else {
+                let srcSlot = slots.find((s) => s.id === draggedData.srcSlotId);
+                if (srcSlot && srcSlot.id !== targetSlot.id) {
+                  if (targetSlot.activities.length < 2) {
+                    let idx = srcSlot.activities.findIndex(
+                      (a) => a.id === draggedData.srcActivityId
+                    );
+                    if (idx !== -1) {
+                      let act = srcSlot.activities.splice(idx, 1)[0];
+                      targetSlot.activities.push(act);
+                      selectedActivityId = null;
+                      initTableRows();
+                      saveDataToCloud();
                     }
-                } catch(e) { updateStatus("安全運作中 (本地儲存)"); }
-            };
-            document.body.appendChild(script);
+                  } else {
+                    updateStatus("⚠️ 目標格已滿 2 個行程方塊囉！");
+                    initTableRows();
+                  }
+                } else {
+                  initTableRows();
+                }
+              }
+            }
+          } else {
+            let srcSlot = slots.find((s) => s.id === draggedData.srcSlotId);
+            if (srcSlot) {
+              srcSlot.activities = srcSlot.activities.filter(
+                (a) => a.id !== draggedData.srcActivityId
+              );
+              selectedActivityId = null;
+              initTableRows();
+              saveDataToCloud();
+              updateStatus("🗑️ 方塊已移出時間表，直接刪除！");
+            }
+          }
+        } else if (draggedData && !draggedData.srcSlotId) {
+          if (cell) {
+            const tId = cell.id.replace("cell-", "");
+            let targetSlot = slots.find((s) => s.id === tId);
+            if (targetSlot) {
+              if (draggedData.text === "__eraser__") {
+                targetSlot.activities = [];
+                initTableRows();
+                saveDataToCloud();
+              } else {
+                if (targetSlot.activities.length < 2) {
+                  targetSlot.activities.push({
+                    id: generateId(),
+                    name: draggedData.text,
+                    color: draggedData.color,
+                    detail: draggedData.detail,
+                  });
+                  initTableRows();
+                  saveDataToCloud();
+                } else {
+                  updateStatus("⚠️ 該時段格已滿 2 個行程方塊囉！");
+                }
+              }
+            }
+          }
         }
-        setTimeout(injectSupabaseSDK, 300);
+
+        if (activeModuleElement) {
+          activeModuleElement.style.opacity = "1";
+          activeModuleElement = null;
+        }
+        if (dragPreviewEl) {
+          dragPreviewEl.remove();
+          dragPreviewEl = null;
+        }
+        draggedData = null;
+        lastHoveredCell = null;
+
+        document.removeEventListener("pointermove", onGlobalMove);
+        document.removeEventListener("pointerup", onGlobalEnd);
+        document.removeEventListener("pointercancel", onGlobalEnd);
+      }
+
+      let globalPointerStartX = 0;
+      let globalPointerStartY = 0;
+
+      document.addEventListener("pointerdown", (e) => {
+        globalPointerStartX = e.clientX;
+        globalPointerStartY = e.clientY;
+      });
+
+      document.addEventListener("pointerup", (e) => {
+        const dist = Math.sqrt(
+          Math.pow(e.clientX - globalPointerStartX, 2) +
+            Math.pow(e.clientY - globalPointerStartY, 2)
+        );
+        if (dist > 10) return;
+
+        if (
+          e.target.closest(".module") ||
+          e.target.closest(".sub-block") ||
+          e.target.closest(".cell-inner-flex") ||
+          e.target.closest(".modal-content") ||
+          e.target.closest("input") ||
+          e.target.closest("button") ||
+          e.target.closest(".color-dot")
+        )
+          return;
+
+        currentText = "";
+        currentColor = "";
+        currentDetail = "";
+        selectedActivityId = null;
+        document
+          .querySelectorAll(".sub-block")
+          .forEach((b) => b.classList.remove("selected-act"));
+        updateActiveModuleUI();
+      });
+
+      document.getElementById("add-row-btn").addEventListener("click", () => {
+        const timeVal = document.getElementById("new-row-time").value;
+        if (!timeVal) return;
+        let slots = currentDay === 1 ? travelData.day1 : travelData.day2;
+        slots.push({ id: generateId(), time: timeVal, activities: [] });
+        slots.sort((a, b) => a.time.localeCompare(b.time));
+        initTableRows();
+        saveDataToCloud();
+      });
+
+      document.querySelectorAll(".color-dot").forEach((dot) => {
+        dot.addEventListener("click", () => {
+          document
+            .querySelectorAll(".color-dot")
+            .forEach((d) => d.classList.remove("active"));
+          dot.classList.add("active");
+          currentColor = dot.getAttribute("data-color");
+          document.getElementById("new-color").value = currentColor;
+        });
+      });
+      document.getElementById("new-color").addEventListener("input", (e) => {
+        document
+          .querySelectorAll(".color-dot")
+          .forEach((d) => d.classList.remove("active"));
+        currentColor = e.target.value;
+      });
+
+      document.getElementById("add-btn").addEventListener("click", () => {
+        const nameIn = document.getElementById("new-name");
+        const detailIn = document.getElementById("new-detail");
+        const name = nameIn.value.trim();
+        const detail = detailIn.value.trim();
+        if (!name) return;
+        travelData.modules.push({
+          text: name,
+          color: currentColor || "#22c55e",
+          detail: detail,
+        });
+        currentText = name;
+        currentDetail = detail;
+        renderModules();
+        saveDataToCloud();
+        nameIn.value = "";
+        detailIn.value = "";
+      });
+
+      document
+        .getElementById("reset-btn")
+        .addEventListener("click", openResetModal);
+
+      async function saveDataToCloud() {
+        try {
+          localStorage.setItem(
+            "backup_travel_data",
+            JSON.stringify(travelData)
+          );
+        } catch (e) {}
+        if (!supabaseClient) return;
+        try {
+          await supabaseClient
+            .from("travel_schedules")
+            .upsert({ id: SCHEDULE_ID, data: travelData });
+          updateStatus("✅ 雲端即時同步完成！");
+        } catch (e) {}
+      }
+
+      async function loadDataFromCloud() {
+        if (!supabaseClient) return;
+        try {
+          const { data, error } = await supabaseClient
+            .from("travel_schedules")
+            .select("data")
+            .eq("id", SCHEDULE_ID)
+            .single();
+          if (!error && data && data.data) {
+            if (safeMergeData(data.data) === "rebuild") initTableRows();
+            initTableRows();
+            renderModules();
+            updateStatus("✅ 雲端同步載入完成");
+          }
+        } catch (e) {}
+      }
+
+      validateAndRepairData();
+      initTableRows();
+      renderModules();
+
+      try {
+        const cache = localStorage.getItem("backup_travel_data");
+        if (cache) {
+          if (safeMergeData(JSON.parse(cache)) === "rebuild") initTableRows();
+          initTableRows();
+          renderModules();
+        }
+      } catch (e) {}
+
+      function injectSupabaseSDK() {
+        updateStatus("⏳ 雲端管道同步中...");
+        const script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+        script.async = true;
+        script.onload = function () {
+          try {
+            if (window.supabase) {
+              supabaseClient = window.supabase.createClient(
+                SUPABASE_URL,
+                SUPABASE_ANON_KEY
+              );
+              loadDataFromCloud();
+
+              supabaseClient
+                .channel("realtime-travel-schedule")
+                .on(
+                  "postgres_changes",
+                  {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "travel_schedules",
+                    filter: `id=eq.${SCHEDULE_ID}`,
+                  },
+                  (payload) => {
+                    if (
+                      payload.new &&
+                      payload.new.data &&
+                      !isPointerDown &&
+                      !isDragActive &&
+                      document.activeElement.tagName !== "INPUT" &&
+                      !document
+                        .getElementById("app-modal")
+                        .classList.contains("open")
+                    ) {
+                      if (safeMergeData(payload.new.data) === "rebuild")
+                        initTableRows();
+                      initTableRows();
+                      renderModules();
+                      updateStatus("⚡ 雲端資料已即時同步更新！");
+                    }
+                  }
+                )
+                .subscribe();
+            }
+          } catch (e) {
+            updateStatus("安全運作中 (本地儲存)");
+          }
+        };
+        document.body.appendChild(script);
+      }
+      setTimeout(injectSupabaseSDK, 300);
     </script>
-</body>
+  </body>
 </html>
