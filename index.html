@@ -6,9 +6,17 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>自動同步旅行時間表 (極速廣播秒級同步版)</title>
+    <title>自動同步旅行時間表 (行動端防滾動完美版)</title>
     <style>
-      /* 🔒 全域禁用干擾拖曳與引發殘影的瀏覽器原生行為，但保留滾動能力 */
+      /* 🔒 核心關鍵：全域禁用瀏覽器預設手勢（如橡皮筋回彈、下拉重新整理與滑動頁面） */
+      html,
+      body {
+        position: relative;
+        overflow-x: hidden;
+        /* 避免行動端長按彈出系統選單 */
+        -webkit-touch-callout: none !important;
+      }
+
       *,
       *::before,
       *::after {
@@ -27,6 +35,7 @@
       input[type="time"] {
         user-select: text !important;
         -webkit-user-select: text !important;
+        touch-action: auto !important; /* 輸入框允許正常操作 */
       }
 
       body {
@@ -192,6 +201,7 @@
         box-shadow: 0 4px 10px -2px rgba(99, 102, 241, 0.2);
       }
 
+      /* 🔒 關鍵修復：行程格子內不可觸發任何方向的預設滾動行為 */
       .cell-inner-flex {
         position: relative;
         padding: 6px;
@@ -203,8 +213,10 @@
         min-height: 60px;
         height: 100%;
         width: 100%;
+        touch-action: none !important;
       }
 
+      /* 🔒 關鍵修復：時間表內的小方塊絕對不允許滾動 */
       .sub-block {
         flex: 1;
         min-width: 0;
@@ -222,6 +234,7 @@
         box-sizing: border-box;
         transition: filter 0.2s, box-shadow 0.2s;
         cursor: pointer;
+        touch-action: none !important;
       }
 
       .sub-block.selected-act {
@@ -342,6 +355,7 @@
         margin-top: 15px;
       }
 
+      /* 🔒 關鍵修復：下方行程模塊庫的小方塊也徹底禁用原生滑動手勢 */
       .module {
         display: inline-flex;
         align-items: center;
@@ -353,6 +367,7 @@
         border: 3px solid transparent;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
         font-size: 0.9em;
+        touch-action: none !important;
       }
       .module.active {
         border: 3px solid #0f172a;
@@ -413,6 +428,7 @@
         z-index: 15000;
         backdrop-filter: blur(4px);
         box-shadow: 0 -4px 15px rgba(239, 68, 68, 0.15);
+        touch-action: none !important;
       }
       .delete-zone.show {
         transform: translateX(-50%) translateY(0);
@@ -714,8 +730,6 @@
       let currentText = "";
       let currentDetail = "";
       let supabaseClient = null;
-      let syncChannel = null; // 🚀 廣播通道控制變數
-      const myClientId = "client_" + Math.random().toString(36).substr(2, 9); // 🚀 本機獨立裝置 ID
 
       let isPointerDown = false;
       let isDragActive = false;
@@ -760,6 +774,18 @@
             }, 30);
           }
         });
+
+      // 🔒 終極關鍵修復：監聽全域的原生 touchmove，只要處於拖曳激活狀態，強行在第一時間 preventDefault
+      // 這個是解決 iOS 網頁跟著動最立竿見影的解法
+      document.addEventListener(
+        "touchmove",
+        function (e) {
+          if (isDragActive) {
+            e.preventDefault();
+          }
+        },
+        { passive: false }
+      );
 
       function openEditCellModal(slot, activity) {
         const header = document.getElementById("app-modal-header");
@@ -1001,6 +1027,7 @@
                 isLongPressActive = false;
                 const startX = e.clientX;
                 const startY = e.clientY;
+                const pointerId = e.pointerId;
 
                 longPressTimer = setTimeout(() => {
                   isLongPressActive = true;
@@ -1021,6 +1048,7 @@
                     act.detail,
                     slot.id,
                     act.id,
+                    pointerId,
                     e
                   );
                 }, 600);
@@ -1221,13 +1249,24 @@
           isModuleLongPress = false;
           const startX = e.clientX;
           const startY = e.clientY;
+          const pointerId = e.pointerId;
           isDragActive = false;
 
           moduleTimer = setTimeout(() => {
             isModuleLongPress = true;
             if (navigator.vibrate) navigator.vibrate(50);
             unbindHandlers();
-            activateDrag(element, text, color, isEraser, detail, null, null, e);
+            activateDrag(
+              element,
+              text,
+              color,
+              isEraser,
+              detail,
+              null,
+              null,
+              pointerId,
+              e
+            );
           }, 600);
 
           const handleMove = (me) => {
@@ -1294,6 +1333,7 @@
         detail = "",
         srcSlotId = null,
         srcActivityId = null,
+        pointerId = null,
         initialEvent
       ) {
         isDragActive = true;
@@ -1305,9 +1345,9 @@
           srcActivityId: srcActivityId,
         };
 
-        if (element && initialEvent && initialEvent.pointerId !== undefined) {
+        if (element && pointerId !== null) {
           try {
-            element.setPointerCapture(initialEvent.pointerId);
+            element.setPointerCapture(pointerId);
           } catch (e) {}
         }
 
@@ -1321,6 +1361,8 @@
 
         dragPreviewEl = document.createElement("div");
         dragPreviewEl.className = "module";
+        // 🔒 殘影本身也要徹底防滾動
+        dragPreviewEl.style.touchAction = "none";
         dragPreviewEl.style.backgroundColor = color || "#3b82f6";
         dragPreviewEl.textContent = isEraser ? "🧹 清除模式" : text;
         dragPreviewEl.style.position = "fixed";
@@ -1344,7 +1386,12 @@
       }
 
       function onGlobalMove(e) {
-        if (!isDragActive) return;
+        if (isDragActive) {
+          e.preventDefault();
+        } else {
+          return;
+        }
+
         updatePreviewPos(e.clientX, e.clientY);
 
         let target = document.elementFromPoint(e.clientX, e.clientY);
@@ -1582,7 +1629,6 @@
         .getElementById("reset-btn")
         .addEventListener("click", openResetModal);
 
-      // 🌟 核心重構：讓本機變更在幾毫秒內以極速廣播通道發射出去，資料庫則悄悄在背景處理
       async function saveDataToCloud() {
         try {
           localStorage.setItem(
@@ -1590,19 +1636,8 @@
             JSON.stringify(travelData)
           );
         } catch (e) {}
-
-        // 🚀 廣播第一防線：不驚動資料庫，率先使用 WebSocket 通道把當前變動廣播給每個人
-        if (supabaseClient && syncChannel) {
-          syncChannel.send({
-            type: "broadcast",
-            event: "ui-change",
-            payload: { data: travelData, senderId: myClientId },
-          });
-        }
-
         if (!supabaseClient) return;
         try {
-          // 📦 隨後再背地裡完成 PostgreSQL 實體資料庫寫入
           await supabaseClient
             .from("travel_schedules")
             .upsert({ id: SCHEDULE_ID, data: travelData });
@@ -1654,10 +1689,8 @@
               );
               loadDataFromCloud();
 
-              // 🚀 核心重構：同時訂閱傳統資料庫變更日誌，以及 WebSocket 遊戲級廣播通道
-              syncChannel = supabaseClient.channel("realtime-travel-schedule");
-
-              syncChannel
+              supabaseClient
+                .channel("realtime-travel-schedule")
                 .on(
                   "postgres_changes",
                   {
@@ -1677,7 +1710,6 @@
                         .getElementById("app-modal")
                         .classList.contains("open")
                     ) {
-                      // 傳統資料庫回溯保護，若已被廣播更新則此處會安全過濾不重繪
                       if (safeMergeData(payload.new.data) === "rebuild")
                         initTableRows();
                       initTableRows();
@@ -1686,29 +1718,6 @@
                     }
                   }
                 )
-                // 📡 遊戲級 WebSocket 極速監聽：
-                .on("broadcast", { event: "ui-change" }, ({ payload }) => {
-                  // 安全機制：忽略自己這台裝置發出的廣播
-                  if (payload && payload.senderId === myClientId) return;
-
-                  if (
-                    payload &&
-                    payload.data &&
-                    !isPointerDown &&
-                    !isDragActive &&
-                    document.activeElement.tagName !== "INPUT" &&
-                    !document
-                      .getElementById("app-modal")
-                      .classList.contains("open")
-                  ) {
-                    // 幾毫秒內秒速同步別人的手指動作！
-                    if (safeMergeData(payload.data) === "rebuild")
-                      initTableRows();
-                    initTableRows();
-                    renderModules();
-                    updateStatus("⚡ 極速通道已秒級同步！");
-                  }
-                })
                 .subscribe();
             }
           } catch (e) {
