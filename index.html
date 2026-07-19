@@ -6,14 +6,12 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>自動同步旅行時間表 (行動端防滾動完美版)</title>
+    <title>自動同步旅行時間表 (極致手感版)</title>
     <style>
-      /* 🔒 核心關鍵：全域禁用瀏覽器預設手勢（如橡皮筋回彈、下拉重新整理與滑動頁面） */
       html,
       body {
         position: relative;
         overflow-x: hidden;
-        /* 避免行動端長按彈出系統選單 */
         -webkit-touch-callout: none !important;
       }
 
@@ -25,17 +23,22 @@
         user-select: none !important;
         -webkit-user-select: none !important;
         -webkit-touch-callout: none !important;
-        -webkit-user-drag: none !important;
         -webkit-tap-highlight-color: transparent !important;
       }
 
-      /* 🔓 確保文字輸入框依然能正常被選取輸入 */
+      .sub-block,
+      .module {
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        -webkit-user-drag: auto !important;
+      }
+
       input[type="text"],
       input[type="password"],
       input[type="time"] {
         user-select: text !important;
         -webkit-user-select: text !important;
-        touch-action: auto !important; /* 輸入框允許正常操作 */
+        touch-action: auto !important;
       }
 
       body {
@@ -44,17 +47,10 @@
         align-items: center;
         background-color: #fee2e2;
         padding: 20px;
-        padding-bottom: 120px; /* 留出底部固定垃圾桶的空間 */
+        padding-bottom: 120px;
         color: #1e293b;
         margin: 0;
         box-sizing: border-box;
-      }
-
-      h2 {
-        margin-top: 0;
-        color: #0f172a;
-        font-size: 1.4em;
-        font-weight: 700;
       }
 
       .status-bar {
@@ -68,19 +64,48 @@
         text-align: center;
         width: 100%;
         max-width: 600px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+        transition: background 0.2s;
       }
 
       .schedule-container {
         background: white;
         padding: 20px;
         border-radius: 16px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05),
-          0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
         margin-bottom: 20px;
         width: 100%;
         max-width: 600px;
         box-sizing: border-box;
+      }
+
+      .schedule-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .schedule-header h2 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 1.4em;
+        font-weight: 700;
+      }
+      .eraser-btn {
+        background: #ffffff;
+        color: #475569;
+        border: 2px dashed #cbd5e1;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s;
+        font-size: 0.9em;
+      }
+      .eraser-btn.active {
+        border: 2px solid #ef4444;
+        color: #ef4444;
+        background: #fef2f2;
+        box-shadow: 0 4px 10px rgba(239, 68, 68, 0.15);
       }
 
       .tab-container {
@@ -102,13 +127,11 @@
         color: #64748b;
         cursor: pointer;
         border-radius: 8px;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       }
       .tab-btn.active {
         background: white;
         color: #4f46e5;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05),
-          0 1px 3px rgba(0, 0, 0, 0.02);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
       }
 
       table {
@@ -134,7 +157,7 @@
       td.time-col {
         background-color: #f8fafc;
         padding: 6px;
-        width: 130px;
+        width: 150px;
       }
       .time-cell-wrapper {
         display: flex;
@@ -152,10 +175,34 @@
         font-size: 0.95em;
         text-align: center;
         outline: none;
+        min-width: 0;
       }
-      .time-input:focus {
+
+      .cap-control {
+        display: flex;
+        gap: 3px;
+        align-items: center;
+        background: #e2e8f0;
+        padding: 3px;
+        border-radius: 6px;
+      }
+      .cap-btn {
         background: white;
-        border-color: #6366f1;
+        border: none;
+        border-radius: 4px;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        color: #475569;
+        cursor: pointer;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        font-size: 14px;
+      }
+      .cap-btn:active {
+        background: #cbd5e1;
       }
 
       .del-row-btn {
@@ -163,45 +210,78 @@
         border: none;
         color: #94a3b8;
         cursor: pointer;
-        font-size: 13px;
+        font-size: 14px;
         padding: 4px;
         border-radius: 6px;
-        transition: all 0.2s;
-      }
-      .del-row-btn:hover {
-        color: #ef4444;
-        background: #fee2e2;
       }
 
-      .add-row-bar {
+      /* 🌟 底部排版：分為上下兩行 */
+      .schedule-footer {
         display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 10px;
+        flex-direction: column;
+        gap: 16px; /* 兩行之間的間距 */
         margin-top: 20px;
         padding-top: 16px;
         border-top: 1px dashed #e2e8f0;
       }
+
+      /* 上行：新增時間格子 (置中) */
+      .add-row-bar {
+        display: flex;
+        justify-content: center; /* 完美置中 */
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+      }
       .add-row-bar input[type="time"] {
-        padding: 10px;
+        padding: 8px 10px;
         border: 2px solid #cbd5e1;
-        border-radius: 10px;
+        border-radius: 8px;
         font-weight: bold;
         color: #475569;
-        outline: none;
       }
       .add-row-bar button {
-        padding: 10px 20px;
+        padding: 8px 16px;
         background: linear-gradient(135deg, #4f46e5, #6366f1);
         color: white;
         border: none;
-        border-radius: 10px;
+        border-radius: 8px;
         font-weight: 700;
         cursor: pointer;
-        box-shadow: 0 4px 10px -2px rgba(99, 102, 241, 0.2);
       }
 
-      /* 🔒 關鍵修復：行程格子內不可觸發任何方向的預設滾動行為 */
+      /* 下行：返回與重做 (左下角) */
+      .undo-redo-container {
+        display: flex;
+        justify-content: flex-start; /* 完美靠左 */
+        gap: 12px;
+        width: 100%;
+      }
+      .icon-btn {
+        background: transparent;
+        border: none;
+        color: #94a3b8;
+        padding: 6px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s, background 0.2s;
+        opacity: 0.3;
+        pointer-events: none;
+      }
+      .icon-btn.active-state {
+        opacity: 1;
+        pointer-events: auto;
+        color: #64748b;
+      }
+      .icon-btn.active-state:active {
+        background: #f1f5f9;
+        color: #475569;
+      }
+
+      /* 格子拖曳高亮特效 */
       .cell-inner-flex {
         position: relative;
         padding: 6px;
@@ -213,10 +293,37 @@
         min-height: 60px;
         height: 100%;
         width: 100%;
-        touch-action: none !important;
+        touch-action: pan-y !important;
+        transition: box-shadow 0.2s, background-color 0.2s, transform 0.2s;
+        border-radius: 6px;
+      }
+      .cell-inner-flex.drag-over-active {
+        background-color: rgba(37, 99, 235, 0.12) !important;
+        box-shadow: inset 0 0 0 4px rgba(37, 99, 235, 0.6) !important;
+      }
+      .cell-inner-flex.drag-over-left {
+        box-shadow: inset 14px 0 0 0 #2563eb,
+          inset 0 0 20px rgba(37, 99, 235, 0.4), 0 0 15px rgba(37, 99, 235, 0.6) !important;
+        background: linear-gradient(
+          to right,
+          rgba(37, 99, 235, 0.25) 0%,
+          transparent 60%
+        ) !important;
+        transform: scale(1.02);
+        z-index: 5;
+      }
+      .cell-inner-flex.drag-over-right {
+        box-shadow: inset -14px 0 0 0 #2563eb,
+          inset 0 0 20px rgba(37, 99, 235, 0.4), 0 0 15px rgba(37, 99, 235, 0.6) !important;
+        background: linear-gradient(
+          to left,
+          rgba(37, 99, 235, 0.25) 0%,
+          transparent 60%
+        ) !important;
+        transform: scale(1.02);
+        z-index: 5;
       }
 
-      /* 🔒 關鍵修復：時間表內的小方塊絕對不允許滾動 */
       .sub-block {
         flex: 1;
         min-width: 0;
@@ -232,9 +339,10 @@
         text-align: center;
         word-break: break-all;
         box-sizing: border-box;
-        transition: filter 0.2s, box-shadow 0.2s;
         cursor: pointer;
-        touch-action: none !important;
+        touch-action: pan-y !important;
+        transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+          box-shadow 0.15s;
       }
 
       .sub-block.selected-act {
@@ -242,17 +350,19 @@
         box-shadow: inset 0 0 0 3px #0f172a, 0 6px 14px rgba(0, 0, 0, 0.35) !important;
       }
 
-      .cell-inner-flex.drag-over {
-        box-shadow: inset 0 0 0 3px #10b981 !important;
-        background-color: rgba(16, 185, 129, 0.08) !important;
+      .sub-block.drag-over-replace {
+        box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.9), 0 0 0 8px #ef4444,
+          0 10px 25px rgba(239, 68, 68, 0.7) !important;
+        transform: scale(0.9) translateY(-2px);
+        filter: brightness(0.6) !important;
+        z-index: 10;
       }
 
       .modules-container {
         background: white;
         padding: 20px;
         border-radius: 16px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05),
-          0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
         width: 100%;
         max-width: 600px;
         box-sizing: border-box;
@@ -280,7 +390,6 @@
         height: 22px;
         border-radius: 50%;
         cursor: pointer;
-        transition: transform 0.15s;
         border: 2px solid white;
         box-shadow: 0 0 0 1px #e2e8f0;
       }
@@ -308,11 +417,9 @@
         font-size: 0.9em;
         box-sizing: border-box;
       }
-      .add-tool-bar input[type="text"]:focus {
-        border-color: #6366f1;
-      }
 
       .color-picker-capsule {
+        position: relative;
         display: flex;
         align-items: center;
         gap: 6px;
@@ -322,18 +429,28 @@
         border-radius: 8px;
         height: 40px;
         box-sizing: border-box;
+        cursor: pointer;
       }
       .color-picker-capsule span {
         font-size: 0.8em;
         color: #64748b;
         font-weight: 700;
       }
-      .add-tool-bar input[type="color"] {
+      .color-picker-capsule .color-indicator {
         width: 22px;
         height: 22px;
-        border: none;
-        background: transparent;
-        padding: 0;
+        border-radius: 4px;
+        border: 1px solid #e2e8f0;
+        box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.1);
+      }
+      .color-picker-capsule input[type="color"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
       }
 
       .add-tool-bar button {
@@ -344,7 +461,6 @@
         border: none;
         border-radius: 8px;
         font-weight: 700;
-        cursor: pointer;
       }
 
       .module-list {
@@ -355,7 +471,6 @@
         margin-top: 15px;
       }
 
-      /* 🔒 關鍵修復：下方行程模塊庫的小方塊也徹底禁用原生滑動手勢 */
       .module {
         display: inline-flex;
         align-items: center;
@@ -367,41 +482,13 @@
         border: 3px solid transparent;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.15);
         font-size: 0.9em;
-        touch-action: none !important;
+        touch-action: pan-y !important;
+        position: relative;
+        cursor: pointer;
       }
       .module.active {
         border: 3px solid #0f172a;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-      }
-      .module.eraser {
-        background-color: #ffffff;
-        color: #475569;
-        border: 2px dashed #cbd5e1;
-        text-shadow: none;
-      }
-      .module.eraser.active {
-        border: 3px solid #ef4444;
-      }
-
-      .mod-btn-group {
-        display: inline-flex;
-        gap: 4px;
-        margin-left: 6px;
-      }
-      .del-mod-btn {
-        background: rgba(255, 255, 255, 0.25);
-        color: white;
-        border-radius: 50%;
-        width: 18px;
-        height: 18px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        cursor: pointer;
-      }
-      .del-mod-btn:hover {
-        background: #ef4444;
       }
 
       .delete-zone {
@@ -440,7 +527,58 @@
         background: #ef4444 !important;
         color: white !important;
         transform: translateX(-50%) scale(1.03);
-        box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
+      }
+
+      /* 電影級高質感血紅警告特效 */
+      .global-danger-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        opacity: 0;
+        z-index: 14000;
+        transition: opacity 0.3s ease;
+        background: radial-gradient(
+          circle at center,
+          transparent 30%,
+          rgba(220, 38, 38, 0.15) 100%
+        );
+      }
+      .global-danger-overlay.show {
+        opacity: 1;
+        animation: danger-pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes danger-pulse {
+        0% {
+          box-shadow: inset 0 0 0 6px rgba(220, 38, 38, 0.7),
+            inset 0 0 80px rgba(220, 38, 38, 0.5);
+        }
+        50% {
+          box-shadow: inset 0 0 0 10px rgba(220, 38, 38, 0.95),
+            inset 0 0 150px rgba(220, 38, 38, 0.8);
+        }
+        100% {
+          box-shadow: inset 0 0 0 6px rgba(220, 38, 38, 0.7),
+            inset 0 0 80px rgba(220, 38, 38, 0.5);
+        }
+      }
+
+      /* 頂級高質感持取狀態光暈提示 */
+      .selection-border-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        opacity: 0;
+        z-index: 13000;
+        transition: box-shadow 0.3s ease, opacity 0.3s ease;
+      }
+      .selection-border-overlay.active {
+        opacity: 1;
       }
 
       .danger-zone {
@@ -455,10 +593,6 @@
         cursor: pointer;
         font-size: 0.8em;
         font-weight: 600;
-      }
-      .reset-btn:hover {
-        border-color: #ef4444;
-        color: #ef4444;
       }
 
       .modal-overlay {
@@ -523,9 +657,6 @@
         width: 100%;
         box-sizing: border-box;
       }
-      .modal-body input:focus {
-        border-color: #6366f1;
-      }
       .modal-footer {
         display: flex;
         justify-content: flex-end;
@@ -538,21 +669,14 @@
         cursor: pointer;
         border: none;
         font-size: 0.92em;
-        transition: background 0.1s;
       }
       .modal-btn.cancel {
         background: #f1f5f9;
         color: #64748b;
       }
-      .modal-btn.cancel:active {
-        background: #e2e8f0;
-      }
       .modal-btn.confirm {
         background: linear-gradient(135deg, #4f46e5, #6366f1);
         color: white;
-      }
-      .modal-btn.confirm:active {
-        opacity: 0.9;
       }
       .modal-btn.danger {
         background: #ef4444;
@@ -569,12 +693,17 @@
           padding: 14px;
         }
         td.time-col {
-          width: 115px;
+          width: 135px;
           padding: 4px;
         }
         .time-input {
           font-size: 0.9em;
           padding: 6px 2px;
+        }
+        .cap-btn {
+          width: 18px;
+          height: 18px;
+          font-size: 12px;
         }
         .cell-inner-flex {
           font-size: 0.85em;
@@ -599,19 +728,20 @@
           gap: 8px;
           padding: 10px;
         }
-        .color-picker-capsule,
-        .add-tool-bar button {
-          width: 100%;
-          height: 38px;
-        }
       }
     </style>
   </head>
   <body>
+    <div id="global-danger-overlay" class="global-danger-overlay"></div>
+    <div id="selection-border-overlay" class="selection-border-overlay"></div>
+
     <div class="status-bar" id="sync-status">⚡ 數據通道準備中...</div>
 
     <div class="schedule-container">
-      <h2>✈️ 協同旅行時間表</h2>
+      <div class="schedule-header">
+        <h2>✈️ 協同旅行時間表</h2>
+        <button id="eraser-btn" class="eraser-btn">🧹 清除模式</button>
+      </div>
 
       <div class="tab-container">
         <button class="tab-btn active" id="btn-day1" onclick="switchDay(1)">
@@ -625,16 +755,51 @@
       <table id="schedule-table">
         <thead>
           <tr>
-            <th style="width: 130px">時間</th>
-            <th id="column-header">Day 1 行程 (可納2個方塊)</th>
+            <th style="width: 150px">時間</th>
+            <th id="column-header">Day 1 行程</th>
           </tr>
         </thead>
         <tbody id="schedule-body"></tbody>
       </table>
 
-      <div class="add-row-bar">
-        <input type="time" id="new-row-time" value="12:00" />
-        <button id="add-row-btn">➕ 新增時間格子</button>
+      <div class="schedule-footer">
+        <div class="add-row-bar">
+          <input type="time" id="new-row-time" value="12:00" />
+          <button id="add-row-btn">➕ 新增時間格子</button>
+        </div>
+
+        <div class="undo-redo-container">
+          <button id="undo-btn" class="icon-btn" title="返回上一步">
+            <svg
+              viewBox="0 0 24 24"
+              width="22"
+              height="22"
+              stroke="currentColor"
+              stroke-width="2.5"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 7v6h6" />
+              <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+            </svg>
+          </button>
+          <button id="redo-btn" class="icon-btn" title="重做下一步">
+            <svg
+              viewBox="0 0 24 24"
+              width="22"
+              height="22"
+              stroke="currentColor"
+              stroke-width="2.5"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 7v6h-6" />
+              <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -678,13 +843,17 @@
       <div class="add-tool-bar">
         <input type="text" id="new-name" placeholder="行程主題 (如: ⛩️ 參拜)" />
         <input type="text" id="new-detail" placeholder="備忘 (如: 停留1小時)" />
-        <div
-          class="color-picker-capsule"
-          onclick="document.getElementById('new-color').click()"
-        >
+
+        <label class="color-picker-capsule">
           <span>自訂色</span>
+          <div
+            class="color-indicator"
+            id="custom-color-indicator"
+            style="background-color: #22c55e"
+          ></div>
           <input type="color" id="new-color" value="#22c55e" />
-        </div>
+        </label>
+
         <button id="add-btn">➕ 新增模塊</button>
       </div>
 
@@ -743,22 +912,53 @@
       let longPressTimer = null;
       let isLongPressActive = false;
 
+      let isLocalUpdating = false;
+      let localUpdateTimer = null;
+      let modalCloseTime = 0;
+
+      // 🌟 後悔模式狀態
+      let undoStack = [];
+      let redoStack = [];
+      let lastSavedDataStr = "";
+
+      // 自動捲動相關參數
+      let autoScrollEdge = 0;
+      let autoScrollRAF = null;
+      let lastClientX = 0;
+      let lastClientY = 0;
+
+      let pageScrollActive = false;
+      window.addEventListener(
+        "scroll",
+        () => {
+          pageScrollActive = true;
+        },
+        { passive: true }
+      );
+
       const updateStatus = (msg) => {
         document.getElementById("sync-status").textContent = msg;
       };
+
       function generateId() {
         return "id_" + Math.random().toString(36).substr(2, 9);
+      }
+
+      function isGhostClick() {
+        return Date.now() - modalCloseTime < 350;
       }
 
       function closeModal() {
         document.getElementById("app-modal").classList.remove("open");
         modalCallback = null;
+        modalCloseTime = Date.now();
       }
 
       document
         .getElementById("app-modal-cancel")
         .addEventListener("pointerdown", (e) => {
           e.preventDefault();
+          e.stopPropagation();
           closeModal();
         });
 
@@ -766,6 +966,7 @@
         .getElementById("app-modal-confirm")
         .addEventListener("pointerdown", (e) => {
           e.preventDefault();
+          e.stopPropagation();
           if (modalCallback) {
             const runCallback = modalCallback;
             closeModal();
@@ -775,80 +976,147 @@
           }
         });
 
-      // 🔒 終極關鍵修復：監聽全域的原生 touchmove，只要處於拖曳激活狀態，強行在第一時間 preventDefault
-      // 這個是解決 iOS 網頁跟著動最立竿見影的解法
       document.addEventListener(
         "touchmove",
         function (e) {
-          if (isDragActive) {
-            e.preventDefault();
-          }
+          if (isDragActive) e.preventDefault();
         },
         { passive: false }
       );
 
+      // 🌟 UI 更新：根據 Stack 狀態啟閉隱約箭頭
+      function updateUndoRedoUI() {
+        const undoBtn = document.getElementById("undo-btn");
+        const redoBtn = document.getElementById("redo-btn");
+
+        if (undoStack.length > 0) {
+          undoBtn.classList.add("active-state");
+        } else {
+          undoBtn.classList.remove("active-state");
+        }
+
+        if (redoStack.length > 0) {
+          redoBtn.classList.add("active-state");
+        } else {
+          redoBtn.classList.remove("active-state");
+        }
+      }
+
+      document
+        .getElementById("undo-btn")
+        .addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (isGhostClick() || undoStack.length === 0) return;
+
+          const currentStateStr = JSON.stringify(travelData);
+          redoStack.push(currentStateStr);
+
+          const previousStateStr = undoStack.pop();
+          travelData = JSON.parse(previousStateStr);
+          lastSavedDataStr = previousStateStr;
+
+          initTableRows();
+          renderModules();
+          updateUndoRedoUI();
+          saveDataToCloud(true);
+        });
+
+      document
+        .getElementById("redo-btn")
+        .addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (isGhostClick() || redoStack.length === 0) return;
+
+          const currentStateStr = JSON.stringify(travelData);
+          undoStack.push(currentStateStr);
+
+          const nextStateStr = redoStack.pop();
+          travelData = JSON.parse(nextStateStr);
+          lastSavedDataStr = nextStateStr;
+
+          initTableRows();
+          renderModules();
+          updateUndoRedoUI();
+          saveDataToCloud(true);
+        });
+
       function openEditCellModal(slot, activity) {
+        if (isGhostClick()) return;
         const header = document.getElementById("app-modal-header");
         const body = document.getElementById("app-modal-body");
         const confirmBtn = document.getElementById("app-modal-confirm");
         header.textContent = "✏️ 編輯行程內容";
         confirmBtn.className = "modal-btn confirm";
-        body.innerHTML = `
-                <label>行程主題名稱</label><input type="text" id="m-cell-name" value="${
-                  activity.name || ""
-                }">
-                <label>詳細備忘內容</label><input type="text" id="m-cell-detail" value="${
-                  activity.detail || ""
-                }">
-                <label>方塊顯示色彩</label><input type="color" id="m-cell-color" value="${
-                  activity.color || "#3b82f6"
-                }" style="width:100%; height:40px; padding:0; border:none; cursor:pointer; background:none;">
-            `;
-        modalCallback = () => {
-          activity.name = document.getElementById("m-cell-name").value.trim();
-          activity.detail = document
-            .getElementById("m-cell-detail")
-            .value.trim();
-          activity.color = document.getElementById("m-cell-color").value;
-          selectedActivityId = null;
-          initTableRows();
-          saveDataToCloud();
-        };
+
+        body.innerHTML = "<p style='color:#64748b;'>載入中...</p>";
         document.getElementById("app-modal").classList.add("open");
+
+        setTimeout(() => {
+          body.innerHTML = `
+              <label>行程主題名稱</label><input type="text" id="m-cell-name" value="${
+                activity.name || ""
+              }">
+              <label>詳細備忘內容</label><input type="text" id="m-cell-detail" value="${
+                activity.detail || ""
+              }">
+              <label>方塊顯示色彩</label><input type="color" id="m-cell-color" value="${
+                activity.color || "#3b82f6"
+              }" style="width:100%; height:40px; padding:0; border:none; cursor:pointer; background:none;">
+          `;
+          modalCallback = () => {
+            activity.name = document.getElementById("m-cell-name").value.trim();
+            activity.detail = document
+              .getElementById("m-cell-detail")
+              .value.trim();
+            activity.color = document.getElementById("m-cell-color").value;
+            selectedActivityId = null;
+            initTableRows();
+            saveDataToCloud();
+          };
+        }, 50);
       }
 
       function openEditModuleModal(m, index) {
+        if (isGhostClick()) return;
         const header = document.getElementById("app-modal-header");
         const body = document.getElementById("app-modal-body");
         const confirmBtn = document.getElementById("app-modal-confirm");
         header.textContent = "✏️ 編輯模塊設定";
         confirmBtn.className = "modal-btn confirm";
-        body.innerHTML = `
-                <label>模塊主題名稱</label><input type="text" id="m-mod-name" value="${
-                  m.text || ""
-                }">
-                <label>預設詳細備忘</label><input type="text" id="m-mod-detail" value="${
-                  m.detail || ""
-                }">
-                <label>預設顯示色彩</label><input type="color" id="m-mod-color" value="${
-                  m.color || "#3b82f6"
-                }" style="width:100%; height:40px; padding:0; border:none; cursor:pointer; background:none;">
-            `;
-        modalCallback = () => {
-          const name = document.getElementById("m-mod-name").value.trim();
-          if (!name) return;
-          travelData.modules[index] = {
-            text: name,
-            detail: document.getElementById("m-mod-detail").value.trim(),
-            color: document.getElementById("m-mod-color").value,
-          };
-          renderModules();
-          saveDataToCloud();
-        };
+
+        body.innerHTML = "<p style='color:#64748b;'>載入中...</p>";
         document.getElementById("app-modal").classList.add("open");
+
+        setTimeout(() => {
+          body.innerHTML = `
+              <label>模塊主題名稱</label><input type="text" id="m-mod-name" value="${
+                m.text || ""
+              }">
+              <label>預設詳細備忘</label><input type="text" id="m-mod-detail" value="${
+                m.detail || ""
+              }">
+              <label>預設顯示色彩</label><input type="color" id="m-mod-color" value="${
+                m.color || "#3b82f6"
+              }" style="width:100%; height:40px; padding:0; border:none; cursor:pointer; background:none;">
+          `;
+          modalCallback = () => {
+            const name = document.getElementById("m-mod-name").value.trim();
+            if (!name) return;
+            travelData.modules[index] = {
+              text: name,
+              detail: document.getElementById("m-mod-detail").value.trim(),
+              color: document.getElementById("m-mod-color").value,
+            };
+            renderModules();
+            saveDataToCloud();
+          };
+        }, 50);
       }
 
       function openConfirmModal(text, onConfirm, isDanger = false) {
+        if (isGhostClick()) return;
         const header = document.getElementById("app-modal-header");
         const body = document.getElementById("app-modal-body");
         const confirmBtn = document.getElementById("app-modal-confirm");
@@ -862,15 +1130,16 @@
       }
 
       function openResetModal() {
+        if (isGhostClick()) return;
         const header = document.getElementById("app-modal-header");
         const body = document.getElementById("app-modal-body");
         const confirmBtn = document.getElementById("app-modal-confirm");
         header.textContent = "🔒 強制重設資料庫";
         confirmBtn.className = "modal-btn danger";
         body.innerHTML = `
-                <p style="margin:0 0 10px 0; color:#ef4444; font-size:0.9em; font-weight:600; text-align:left;">警報：此動作將完全抹除雲端所有天數的行程數據！</p>
-                <label>請輸入管理授權密碼：</label><input type="password" id="m-reset-pwd" placeholder="請輸入密碼">
-            `;
+            <p style="margin:0 0 10px 0; color:#ef4444; font-size:0.9em; font-weight:600; text-align:left;">警報：此動作將完全抹除雲端所有天數的行程數據！</p>
+            <label>請輸入管理授權密碼：</label><input type="password" id="m-reset-pwd" placeholder="請輸入密碼">
+        `;
         modalCallback = () => {
           if (document.getElementById("m-reset-pwd").value !== "88888888") {
             setTimeout(
@@ -893,7 +1162,7 @@
         currentDay = dayNum;
         document.getElementById(
           "column-header"
-        ).textContent = `Day ${dayNum} 行程 (可納2個方塊)`;
+        ).textContent = `Day ${dayNum} 行程`;
         document
           .querySelectorAll(".tab-container .tab-btn")
           .forEach((b) => b.classList.remove("active"));
@@ -928,15 +1197,17 @@
               id: generateId(),
               time: t,
               activities: [],
+              capacity: 2,
             }));
           }
           return arr.map((slot) => {
             if (!slot.id) slot.id = generateId();
             if (!slot.activities) slot.activities = [];
+            if (!slot.capacity)
+              slot.capacity = Math.max(2, slot.activities.length);
             return slot;
           });
         };
-
         travelData.day1 = fixSlots(travelData.day1);
         travelData.day2 = fixSlots(travelData.day2);
       }
@@ -954,6 +1225,61 @@
         return oldStr !== JSON.stringify(travelData) ? "rebuild" : true;
       }
 
+      function handleInsertOrReplace(
+        slot,
+        newActObj,
+        clientX,
+        cellFlex,
+        targetElement,
+        isDrag = false
+      ) {
+        const rect = cellFlex.getBoundingClientRect();
+        const percentage = Math.max(
+          0,
+          Math.min(1, (clientX - rect.left) / rect.width)
+        );
+        const acts = slot.activities;
+
+        const LEFT_ZONE = isDrag ? 0.35 : 0.15;
+        const RIGHT_ZONE = isDrag ? 0.65 : 0.85;
+
+        if (percentage <= LEFT_ZONE) {
+          acts.unshift(newActObj);
+        } else if (percentage >= RIGHT_ZONE) {
+          acts.push(newActObj);
+        } else {
+          if (acts.length === 0) {
+            acts.push(newActObj);
+          } else if (acts.length === 1) {
+            acts[0] = newActObj;
+          } else {
+            const blocks = Array.from(cellFlex.querySelectorAll(".sub-block"));
+            let replaceIdx = -1;
+
+            if (targetElement && targetElement.closest(".sub-block")) {
+              replaceIdx = blocks.indexOf(targetElement.closest(".sub-block"));
+            }
+            if (replaceIdx === -1) {
+              let minDiff = 9999;
+              blocks.forEach((b, idx) => {
+                const bRect = b.getBoundingClientRect();
+                const bCenter = bRect.left + bRect.width / 2;
+                const diff = Math.abs(clientX - bCenter);
+                if (diff < minDiff) {
+                  minDiff = diff;
+                  replaceIdx = idx;
+                }
+              });
+            }
+            if (replaceIdx !== -1) acts[replaceIdx] = newActObj;
+          }
+        }
+
+        if (acts.length > (slot.capacity || 2)) {
+          slot.capacity = acts.length;
+        }
+      }
+
       function initTableRows() {
         const tbody = document.getElementById("schedule-body");
         if (!tbody) return;
@@ -962,6 +1288,7 @@
 
         slots.forEach((slot) => {
           const tr = document.createElement("tr");
+
           const tdTime = document.createElement("td");
           tdTime.className = "time-col";
           const wrapper = document.createElement("div");
@@ -978,26 +1305,56 @@
             saveDataToCloud();
           });
 
+          const capMinus = document.createElement("button");
+          capMinus.className = "cap-btn";
+          capMinus.textContent = "-";
+          capMinus.addEventListener("pointerdown", (e) => {
+            if (isGhostClick()) return;
+            e.preventDefault();
+            const minCap = Math.max(1, slot.activities.length);
+            slot.capacity = Math.max(minCap, (slot.capacity || 2) - 1);
+            initTableRows();
+            saveDataToCloud();
+          });
+
+          const capPlus = document.createElement("button");
+          capPlus.className = "cap-btn";
+          capPlus.textContent = "+";
+          capPlus.addEventListener("pointerdown", (e) => {
+            if (isGhostClick()) return;
+            e.preventDefault();
+            slot.capacity = Math.min(6, (slot.capacity || 2) + 1);
+            initTableRows();
+            saveDataToCloud();
+          });
+
+          const capWrapper = document.createElement("div");
+          capWrapper.className = "cap-control";
+          capWrapper.appendChild(capMinus);
+          capWrapper.appendChild(capPlus);
+
           const delRowBtn = document.createElement("button");
           delRowBtn.className = "del-row-btn";
           delRowBtn.innerHTML = "🗑️";
-          delRowBtn.addEventListener("click", () => {
+          delRowBtn.addEventListener("pointerdown", (e) => {
+            if (isGhostClick()) return;
+            e.preventDefault();
             openConfirmModal("確定要刪除此時間點格子嗎？", () => {
-              if (currentDay === 1) {
+              if (currentDay === 1)
                 travelData.day1 = travelData.day1.filter(
                   (s) => s.id !== slot.id
                 );
-              } else {
+              else
                 travelData.day2 = travelData.day2.filter(
                   (s) => s.id !== slot.id
                 );
-              }
               initTableRows();
               saveDataToCloud();
             });
           });
 
           wrapper.appendChild(input);
+          wrapper.appendChild(capWrapper);
           wrapper.appendChild(delRowBtn);
           tdTime.appendChild(wrapper);
           tr.appendChild(tdTime);
@@ -1017,29 +1374,69 @@
                 ? `<div style="font-size: 0.72em; opacity: 0.85; margin-bottom:1px;">${act.name}</div><div style="font-size: 0.85em;">${act.detail}</div>`
                 : `<div style="font-size: 0.85em;">${act.name}</div>`;
 
-              if (act.id === selectedActivityId) {
+              if (act.id === selectedActivityId)
                 block.classList.add("selected-act");
-              }
 
-              const setupBlockPointer = (e) => {
+              block.addEventListener("click", (e) => {
+                e.stopPropagation();
+                if (isDragActive || isLongPressActive) return;
+
+                if (currentText) {
+                  if (currentText === "__eraser__") {
+                    slot.activities = slot.activities.filter(
+                      (a) => a.id !== act.id
+                    );
+                  } else {
+                    const newActObj = {
+                      id: generateId(),
+                      name: currentText,
+                      detail: currentDetail,
+                      color: currentColor,
+                    };
+                    handleInsertOrReplace(
+                      slot,
+                      newActObj,
+                      e.clientX,
+                      cellFlex,
+                      e.target,
+                      false
+                    );
+                  }
+                  selectedActivityId = null;
+                  initTableRows();
+                  saveDataToCloud();
+                  return;
+                }
+
+                if (selectedActivityId === act.id) {
+                  openEditCellModal(slot, act);
+                } else {
+                  selectedActivityId = act.id;
+                  document
+                    .querySelectorAll(".sub-block")
+                    .forEach((b) => b.classList.remove("selected-act"));
+                  block.classList.add("selected-act");
+                }
+              });
+
+              block.addEventListener("pointerdown", (e) => {
                 if (e.pointerType === "mouse" && e.button !== 0) return;
+                if (currentText) return;
+
                 isPointerDown = true;
                 isLongPressActive = false;
                 const startX = e.clientX;
                 const startY = e.clientY;
-                const pointerId = e.pointerId;
 
                 longPressTimer = setTimeout(() => {
                   isLongPressActive = true;
                   if (navigator.vibrate) navigator.vibrate(50);
-
                   document
                     .querySelectorAll(".sub-block")
                     .forEach((b) => b.classList.remove("selected-act"));
                   block.classList.add("selected-act");
                   selectedActivityId = act.id;
 
-                  cleanupListeners();
                   activateDrag(
                     block,
                     act.name,
@@ -1048,95 +1445,64 @@
                     act.detail,
                     slot.id,
                     act.id,
-                    pointerId,
+                    e.pointerId,
                     e
                   );
-                }, 600);
+                }, 150);
 
                 const moveHandler = (me) => {
-                  const dist = Math.sqrt(
-                    Math.pow(me.clientX - startX, 2) +
-                      Math.pow(me.clientY - startY, 2)
-                  );
-                  if (dist > 8 && !isLongPressActive)
+                  if (
+                    Math.hypot(me.clientX - startX, me.clientY - startY) > 8 &&
+                    !isLongPressActive
+                  )
                     clearTimeout(longPressTimer);
                 };
 
                 const upHandler = () => {
                   clearTimeout(longPressTimer);
-                  cleanupListeners();
-
-                  if (!isLongPressActive && isPointerDown) {
-                    isPointerDown = false;
-
-                    if (currentText && currentText !== "__eraser__") {
-                      act.name = currentText;
-                      act.color = currentColor;
-                      act.detail = currentDetail;
-                      selectedActivityId = null;
-                      initTableRows();
-                      saveDataToCloud();
-                      return;
-                    } else if (currentText === "__eraser__") {
-                      slot.activities = slot.activities.filter(
-                        (a) => a.id !== act.id
-                      );
-                      initTableRows();
-                      saveDataToCloud();
-                      return;
-                    }
-
-                    if (selectedActivityId === act.id) {
-                      openEditCellModal(slot, act);
-                    } else {
-                      selectedActivityId = act.id;
-                      document
-                        .querySelectorAll(".sub-block")
-                        .forEach((b) => b.classList.remove("selected-act"));
-                      block.classList.add("selected-act");
-                    }
-                  }
-                };
-
-                const cancelHandler = () => {
-                  clearTimeout(longPressTimer);
                   isPointerDown = false;
-                  cleanupListeners();
-                };
-
-                const cleanupListeners = () => {
                   document.removeEventListener("pointermove", moveHandler);
                   document.removeEventListener("pointerup", upHandler);
-                  document.removeEventListener("pointercancel", cancelHandler);
                 };
 
                 document.addEventListener("pointermove", moveHandler);
                 document.addEventListener("pointerup", upHandler);
-                document.addEventListener("pointercancel", cancelHandler);
-              };
+              });
 
-              block.addEventListener("pointerdown", setupBlockPointer);
               cellFlex.appendChild(block);
             });
+          } else {
+            const placeholder = document.createElement("span");
+            placeholder.style.color = "#94a3b8";
+            placeholder.style.fontSize = "0.85em";
+            placeholder.style.fontWeight = "600";
+            placeholder.style.pointerEvents = "none";
+            placeholder.style.opacity = "0.7";
+            placeholder.textContent = `可容納 ${slot.capacity || 2} 個方塊`;
+            cellFlex.appendChild(placeholder);
           }
 
           cellFlex.addEventListener("click", (e) => {
-            if (e.target === cellFlex) {
-              if (currentText && currentText !== "__eraser__") {
-                if (slot.activities.length < 2) {
-                  slot.activities.push({
-                    id: generateId(),
-                    name: currentText,
-                    detail: currentDetail,
-                    color: currentColor,
-                  });
-                  initTableRows();
-                  saveDataToCloud();
-                } else {
-                  updateStatus("⚠️ 每個時段格上限只能容納 2 個行程方塊唷！");
-                }
-              }
-            }
+            if (e.target.closest(".sub-block")) return;
+            if (!currentText || currentText === "__eraser__") return;
+
+            const newActObj = {
+              id: generateId(),
+              name: currentText,
+              detail: currentDetail,
+              color: currentColor,
+            };
+
+            handleInsertOrReplace(
+              slot,
+              newActObj,
+              e.clientX,
+              cellFlex,
+              null,
+              false
+            );
+            initTableRows();
+            saveDataToCloud();
           });
 
           td.appendChild(cellFlex);
@@ -1166,31 +1532,6 @@
             : `<span>${m.text}</span>`;
           div.appendChild(innerWrap);
 
-          const btnGroup = document.createElement("div");
-          btnGroup.className = "mod-btn-group";
-          const stopAction = (e) => e.stopPropagation();
-          btnGroup.addEventListener("pointerdown", stopAction);
-
-          const delBtn = document.createElement("span");
-          delBtn.className = "del-mod-btn";
-          delBtn.innerHTML = "&times;";
-          delBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            openConfirmModal(`確定要將模塊「${m.text}」從清單移除嗎？`, () => {
-              travelData.modules.splice(index, 1);
-              if (currentText === m.text) {
-                currentText = "";
-                currentColor = "";
-                currentDetail = "";
-              }
-              renderModules();
-              saveDataToCloud();
-            });
-          });
-
-          btnGroup.appendChild(delBtn);
-          div.appendChild(btnGroup);
-
           bindModulePointerEvents(
             div,
             m.text,
@@ -1203,12 +1544,6 @@
           container.appendChild(div);
         });
 
-        const eraser = document.createElement("div");
-        eraser.className = "module eraser";
-        eraser.textContent = "🧹 清除模式";
-        bindModulePointerEvents(eraser, "", "", "", true);
-        container.appendChild(eraser);
-
         updateActiveModuleUI();
       }
 
@@ -1217,14 +1552,34 @@
           .querySelectorAll(".module")
           .forEach((el) => el.classList.remove("active"));
         const container = document.getElementById("module-list");
+        const borderOverlay = document.getElementById(
+          "selection-border-overlay"
+        );
+        const eraserBtn = document.getElementById("eraser-btn");
+
+        if (currentText === "__eraser__") {
+          eraserBtn.classList.add("active");
+        } else {
+          eraserBtn.classList.remove("active");
+        }
+
         if (!container) return;
+
+        if (currentText) {
+          borderOverlay.classList.add("active");
+          if (currentText === "__eraser__") {
+            borderOverlay.style.boxShadow = `inset 0 0 0 6px rgba(239, 68, 68, 0.8), inset 0 0 30px rgba(239, 68, 68, 0.3)`;
+          } else {
+            borderOverlay.style.boxShadow = `inset 0 0 0 6px ${
+              currentColor || "rgba(59, 130, 246, 0.8)"
+            }, inset 0 0 30px ${currentColor || "rgba(59, 130, 246, 0.3)"}`;
+          }
+        } else {
+          borderOverlay.classList.remove("active");
+        }
+
         container.querySelectorAll(".module").forEach((el) => {
-          if (el.classList.contains("eraser") && currentText === "__eraser__")
-            el.classList.add("active");
-          else if (
-            !el.classList.contains("eraser") &&
-            el.getAttribute("data-text") === currentText
-          )
+          if (el.getAttribute("data-text") === currentText)
             el.classList.add("active");
         });
       }
@@ -1238,24 +1593,43 @@
         m = null,
         index = null
       ) {
-        let moduleTimer = null;
-        let isModuleLongPress = false;
+        element.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (isDragActive || isLongPressActive) return;
 
-        const handleStart = (e) => {
+          if (isEraser) {
+            currentText = "__eraser__";
+            currentColor = "";
+            currentDetail = "";
+          } else {
+            if (currentText === text) {
+              openEditModuleModal(m, index);
+              return;
+            } else {
+              currentText = text;
+              currentColor = color;
+              currentDetail = detail;
+            }
+          }
+          updateActiveModuleUI();
+          selectedActivityId = null;
+          document
+            .querySelectorAll(".sub-block")
+            .forEach((b) => b.classList.remove("selected-act"));
+        });
+
+        element.addEventListener("pointerdown", (e) => {
           if (e.pointerType === "mouse" && e.button !== 0) return;
-          if (e.target.closest(".del-mod-btn")) return;
 
           isPointerDown = true;
-          isModuleLongPress = false;
+          isLongPressActive = false;
           const startX = e.clientX;
           const startY = e.clientY;
-          const pointerId = e.pointerId;
-          isDragActive = false;
 
-          moduleTimer = setTimeout(() => {
-            isModuleLongPress = true;
+          let moduleTimer = setTimeout(() => {
+            isLongPressActive = true;
             if (navigator.vibrate) navigator.vibrate(50);
-            unbindHandlers();
             activateDrag(
               element,
               text,
@@ -1263,66 +1637,30 @@
               isEraser,
               detail,
               null,
-              null,
-              pointerId,
+              index,
+              e.pointerId,
               e
             );
-          }, 600);
+          }, 150);
 
           const handleMove = (me) => {
-            const dist = Math.sqrt(
-              Math.pow(me.clientX - startX, 2) +
-                Math.pow(me.clientY - startY, 2)
-            );
-            if (dist > 8 && !isModuleLongPress) clearTimeout(moduleTimer);
+            if (
+              Math.hypot(me.clientX - startX, me.clientY - startY) > 8 &&
+              !isLongPressActive
+            )
+              clearTimeout(moduleTimer);
           };
 
           const handleEnd = () => {
             clearTimeout(moduleTimer);
-            unbindHandlers();
-
-            if (!isModuleLongPress && isPointerDown) {
-              isPointerDown = false;
-              if (isEraser) {
-                currentText = "__eraser__";
-                currentColor = "";
-                currentDetail = "";
-              } else {
-                if (currentText === text) {
-                  openEditModuleModal(m, index);
-                  return;
-                } else {
-                  currentText = text;
-                  currentColor = color;
-                  currentDetail = detail;
-                }
-              }
-              updateActiveModuleUI();
-              selectedActivityId = null;
-              document
-                .querySelectorAll(".sub-block")
-                .forEach((b) => b.classList.remove("selected-act"));
-            }
-          };
-
-          const handleCancel = () => {
-            clearTimeout(moduleTimer);
             isPointerDown = false;
-            unbindHandlers();
-          };
-
-          const unbindHandlers = () => {
             document.removeEventListener("pointermove", handleMove);
             document.removeEventListener("pointerup", handleEnd);
-            document.removeEventListener("pointercancel", handleCancel);
           };
 
           document.addEventListener("pointermove", handleMove);
           document.addEventListener("pointerup", handleEnd);
-          document.addEventListener("pointercancel", handleCancel);
-        };
-
-        element.addEventListener("pointerdown", handleStart);
+        });
       }
 
       function activateDrag(
@@ -1350,7 +1688,6 @@
             element.setPointerCapture(pointerId);
           } catch (e) {}
         }
-
         if (!srcSlotId && element) {
           element.style.opacity = "0.3";
           activeModuleElement = element;
@@ -1361,7 +1698,6 @@
 
         dragPreviewEl = document.createElement("div");
         dragPreviewEl.className = "module";
-        // 🔒 殘影本身也要徹底防滾動
         dragPreviewEl.style.touchAction = "none";
         dragPreviewEl.style.backgroundColor = color || "#3b82f6";
         dragPreviewEl.textContent = isEraser ? "🧹 清除模式" : text;
@@ -1373,6 +1709,8 @@
         document.body.appendChild(dragPreviewEl);
 
         updatePreviewPos(initialEvent.clientX, initialEvent.clientY);
+        lastClientX = initialEvent.clientX;
+        lastClientY = initialEvent.clientY;
 
         document.addEventListener("pointermove", onGlobalMove);
         document.addEventListener("pointerup", onGlobalEnd);
@@ -1385,57 +1723,151 @@
         dragPreviewEl.style.top = y - dragPreviewEl.offsetHeight / 2 + "px";
       }
 
-      function onGlobalMove(e) {
-        if (isDragActive) {
-          e.preventDefault();
-        } else {
-          return;
+      // 自動捲動降速至 5
+      function startAutoScroll() {
+        if (!autoScrollRAF) {
+          const scrollStep = () => {
+            if (autoScrollEdge !== 0 && isDragActive) {
+              window.scrollBy(0, autoScrollEdge * 5);
+              simulateHoverEffect(lastClientX, lastClientY);
+              autoScrollRAF = requestAnimationFrame(scrollStep);
+            } else {
+              autoScrollRAF = null;
+            }
+          };
+          autoScrollRAF = requestAnimationFrame(scrollStep);
         }
+      }
 
-        updatePreviewPos(e.clientX, e.clientY);
-
-        let target = document.elementFromPoint(e.clientX, e.clientY);
+      function simulateHoverEffect(clientX, clientY) {
+        let target = document.elementFromPoint(clientX, clientY);
         let deleteZone = document.getElementById("delete-zone");
+        let dangerOverlay = document.getElementById("global-danger-overlay");
+
         if (deleteZone) {
           let delRect = deleteZone.getBoundingClientRect();
           if (
-            e.clientX >= delRect.left &&
-            e.clientX <= delRect.right &&
-            e.clientY >= delRect.top &&
-            e.clientY <= delRect.bottom
+            clientX >= delRect.left &&
+            clientX <= delRect.right &&
+            clientY >= delRect.top &&
+            clientY <= delRect.bottom
           ) {
             deleteZone.classList.add("drag-over");
+            if (dangerOverlay) dangerOverlay.classList.add("show");
           } else {
             deleteZone.classList.remove("drag-over");
+            if (dangerOverlay) dangerOverlay.classList.remove("show");
           }
         }
 
         let cell = target ? target.closest(".cell-inner-flex") : null;
         if (cell !== lastHoveredCell) {
-          if (lastHoveredCell) lastHoveredCell.classList.remove("drag-over");
-          if (cell) cell.classList.add("drag-over");
+          if (lastHoveredCell) {
+            lastHoveredCell.classList.remove(
+              "drag-over-left",
+              "drag-over-right",
+              "drag-over-active"
+            );
+            lastHoveredCell
+              .querySelectorAll(".sub-block")
+              .forEach((b) => b.classList.remove("drag-over-replace"));
+          }
           lastHoveredCell = cell;
+        }
+
+        if (cell) {
+          const tId = cell.id.replace("cell-", "");
+          let targetSlot =
+            currentDay === 1
+              ? travelData.day1.find((s) => s.id === tId)
+              : travelData.day2.find((s) => s.id === tId);
+          cell.classList.remove(
+            "drag-over-left",
+            "drag-over-right",
+            "drag-over-active"
+          );
+          cell
+            .querySelectorAll(".sub-block")
+            .forEach((b) => b.classList.remove("drag-over-replace"));
+
+          if (targetSlot) {
+            const actsLen = targetSlot.activities.length;
+            const rect = cell.getBoundingClientRect();
+            const percentage = Math.max(
+              0,
+              Math.min(1, (clientX - rect.left) / rect.width)
+            );
+
+            if (percentage <= 0.35) {
+              cell.classList.add("drag-over-left");
+            } else if (percentage >= 0.65) {
+              cell.classList.add("drag-over-right");
+            } else {
+              if (actsLen === 0) {
+                cell.classList.add("drag-over-active");
+              } else {
+                const blocks = Array.from(cell.querySelectorAll(".sub-block"));
+                let replaceIdx = -1;
+                let minDiff = 9999;
+                blocks.forEach((b, idx) => {
+                  const bRect = b.getBoundingClientRect();
+                  const bCenter = bRect.left + bRect.width / 2;
+                  const diff = Math.abs(clientX - bCenter);
+                  if (diff < minDiff) {
+                    minDiff = diff;
+                    replaceIdx = idx;
+                  }
+                });
+                if (replaceIdx !== -1)
+                  blocks[replaceIdx].classList.add("drag-over-replace");
+              }
+            }
+          }
+        }
+      }
+
+      function onGlobalMove(e) {
+        if (!isDragActive) return;
+        e.preventDefault();
+        lastClientX = e.clientX;
+        lastClientY = e.clientY;
+        updatePreviewPos(e.clientX, e.clientY);
+        simulateHoverEffect(e.clientX, e.clientY);
+
+        const margin = 100;
+        if (e.clientY < margin) {
+          autoScrollEdge = -1;
+          startAutoScroll();
+        } else if (e.clientY > window.innerHeight - margin) {
+          autoScrollEdge = 1;
+          startAutoScroll();
+        } else {
+          autoScrollEdge = 0;
         }
       }
 
       function onGlobalEnd(e) {
+        autoScrollEdge = 0;
         let deleteZone = document.getElementById("delete-zone");
+        let dangerOverlay = document.getElementById("global-danger-overlay");
+        let isOverDelete =
+          deleteZone && deleteZone.classList.contains("drag-over");
+
         if (deleteZone) deleteZone.classList.remove("show", "drag-over");
+        if (dangerOverlay) dangerOverlay.classList.remove("show");
+        if (lastHoveredCell) {
+          lastHoveredCell.classList.remove(
+            "drag-over-left",
+            "drag-over-right",
+            "drag-over-active"
+          );
+          lastHoveredCell
+            .querySelectorAll(".sub-block")
+            .forEach((b) => b.classList.remove("drag-over-replace"));
+        }
 
         if (!isDragActive) {
           isPointerDown = false;
-          if (draggedData) {
-            if (draggedData.text === "__eraser__") {
-              currentText = "__eraser__";
-              currentColor = "";
-              currentDetail = "";
-            } else if (!draggedData.srcSlotId) {
-              currentText = draggedData.text;
-              currentColor = draggedData.color;
-              currentDetail = draggedData.detail || "";
-            }
-            updateActiveModuleUI();
-          }
           if (dragPreviewEl) {
             dragPreviewEl.remove();
             dragPreviewEl = null;
@@ -1449,7 +1881,6 @@
 
         isDragActive = false;
         isPointerDown = false;
-        if (lastHoveredCell) lastHoveredCell.classList.remove("drag-over");
 
         let target = document.elementFromPoint(e.clientX, e.clientY);
         let cell = target ? target.closest(".cell-inner-flex") : null;
@@ -1467,24 +1898,24 @@
                 saveDataToCloud();
               } else {
                 let srcSlot = slots.find((s) => s.id === draggedData.srcSlotId);
-                if (srcSlot && srcSlot.id !== targetSlot.id) {
-                  if (targetSlot.activities.length < 2) {
-                    let idx = srcSlot.activities.findIndex(
-                      (a) => a.id === draggedData.srcActivityId
+                if (srcSlot) {
+                  let idx = srcSlot.activities.findIndex(
+                    (a) => a.id === draggedData.srcActivityId
+                  );
+                  if (idx !== -1) {
+                    let movingAct = srcSlot.activities.splice(idx, 1)[0];
+                    handleInsertOrReplace(
+                      targetSlot,
+                      movingAct,
+                      e.clientX,
+                      cell,
+                      target,
+                      true
                     );
-                    if (idx !== -1) {
-                      let act = srcSlot.activities.splice(idx, 1)[0];
-                      targetSlot.activities.push(act);
-                      selectedActivityId = null;
-                      initTableRows();
-                      saveDataToCloud();
-                    }
-                  } else {
-                    updateStatus("⚠️ 目標格已滿 2 個行程方塊囉！");
+                    selectedActivityId = null;
                     initTableRows();
+                    saveDataToCloud();
                   }
-                } else {
-                  initTableRows();
                 }
               }
             }
@@ -1497,11 +1928,32 @@
               selectedActivityId = null;
               initTableRows();
               saveDataToCloud();
-              updateStatus("🗑️ 方塊已移出時間表，直接刪除！");
+              updateStatus("🗑️ 行程方塊已成功移除！");
             }
           }
         } else if (draggedData && !draggedData.srcSlotId) {
-          if (cell) {
+          if (
+            isOverDelete &&
+            draggedData.srcActivityId !== null &&
+            draggedData.text !== "__eraser__"
+          ) {
+            const modIndex = draggedData.srcActivityId;
+            const targetName = travelData.modules[modIndex]?.text || "";
+            openConfirmModal(
+              `確定要將模塊「${targetName}」從清單移除嗎？`,
+              () => {
+                travelData.modules.splice(modIndex, 1);
+                if (currentText === targetName) {
+                  currentText = "";
+                  currentColor = "";
+                  currentDetail = "";
+                  updateActiveModuleUI();
+                }
+                renderModules();
+                saveDataToCloud();
+              }
+            );
+          } else if (cell) {
             const tId = cell.id.replace("cell-", "");
             let targetSlot = slots.find((s) => s.id === tId);
             if (targetSlot) {
@@ -1510,18 +1962,22 @@
                 initTableRows();
                 saveDataToCloud();
               } else {
-                if (targetSlot.activities.length < 2) {
-                  targetSlot.activities.push({
-                    id: generateId(),
-                    name: draggedData.text,
-                    color: draggedData.color,
-                    detail: draggedData.detail,
-                  });
-                  initTableRows();
-                  saveDataToCloud();
-                } else {
-                  updateStatus("⚠️ 該時段格已滿 2 個行程方塊囉！");
-                }
+                const newActObj = {
+                  id: generateId(),
+                  name: draggedData.text,
+                  color: draggedData.color,
+                  detail: draggedData.detail,
+                };
+                handleInsertOrReplace(
+                  targetSlot,
+                  newActObj,
+                  e.clientX,
+                  cell,
+                  target,
+                  true
+                );
+                initTableRows();
+                saveDataToCloud();
               }
             }
           }
@@ -1543,29 +1999,29 @@
         document.removeEventListener("pointercancel", onGlobalEnd);
       }
 
-      let globalPointerStartX = 0;
-      let globalPointerStartY = 0;
-
       document.addEventListener("pointerdown", (e) => {
         globalPointerStartX = e.clientX;
         globalPointerStartY = e.clientY;
+        pageScrollActive = false;
       });
 
       document.addEventListener("pointerup", (e) => {
-        const dist = Math.sqrt(
-          Math.pow(e.clientX - globalPointerStartX, 2) +
-            Math.pow(e.clientY - globalPointerStartY, 2)
-        );
-        if (dist > 10) return;
-
+        if (pageScrollActive) return;
         if (
-          e.target.closest(".module") ||
-          e.target.closest(".sub-block") ||
-          e.target.closest(".cell-inner-flex") ||
-          e.target.closest(".modal-content") ||
-          e.target.closest("input") ||
-          e.target.closest("button") ||
-          e.target.closest(".color-dot")
+          Math.hypot(
+            e.clientX - globalPointerStartX,
+            e.clientY - globalPointerStartY
+          ) > 15
+        )
+          return;
+        const target = e.target;
+        if (
+          target.closest(".cell-inner-flex") ||
+          target.closest(".sub-block") ||
+          target.closest(".module") ||
+          target.closest(".cap-btn") ||
+          target.closest(".eraser-btn") ||
+          target.closest(".ur-btn")
         )
           return;
 
@@ -1579,70 +2035,142 @@
         updateActiveModuleUI();
       });
 
-      document.getElementById("add-row-btn").addEventListener("click", () => {
-        const timeVal = document.getElementById("new-row-time").value;
-        if (!timeVal) return;
-        let slots = currentDay === 1 ? travelData.day1 : travelData.day2;
-        slots.push({ id: generateId(), time: timeVal, activities: [] });
-        slots.sort((a, b) => a.time.localeCompare(b.time));
-        initTableRows();
-        saveDataToCloud();
-      });
+      document
+        .getElementById("eraser-btn")
+        .addEventListener("pointerdown", (e) => {
+          if (isGhostClick()) return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (currentText === "__eraser__") {
+            currentText = "";
+            currentColor = "";
+            currentDetail = "";
+          } else {
+            currentText = "__eraser__";
+            currentColor = "";
+            currentDetail = "";
+          }
+          updateActiveModuleUI();
+          selectedActivityId = null;
+          document
+            .querySelectorAll(".sub-block")
+            .forEach((b) => b.classList.remove("selected-act"));
+        });
+
+      document
+        .getElementById("add-row-btn")
+        .addEventListener("pointerdown", (e) => {
+          if (isGhostClick()) return;
+          const timeVal = document.getElementById("new-row-time").value;
+          if (!timeVal) return;
+
+          openConfirmModal(`確定要在「${timeVal}」建立新的時間格子嗎？`, () => {
+            let slots = currentDay === 1 ? travelData.day1 : travelData.day2;
+            slots.push({
+              id: generateId(),
+              time: timeVal,
+              activities: [],
+              capacity: 2,
+            });
+            slots.sort((a, b) => a.time.localeCompare(b.time));
+            initTableRows();
+            saveDataToCloud();
+          });
+        });
+
+      document
+        .getElementById("reset-btn")
+        .addEventListener("pointerdown", openResetModal);
 
       document.querySelectorAll(".color-dot").forEach((dot) => {
-        dot.addEventListener("click", () => {
+        dot.addEventListener("pointerdown", (e) => {
+          if (isGhostClick()) return;
+          e.preventDefault();
+          e.stopPropagation();
           document
             .querySelectorAll(".color-dot")
             .forEach((d) => d.classList.remove("active"));
           dot.classList.add("active");
           currentColor = dot.getAttribute("data-color");
           document.getElementById("new-color").value = currentColor;
+          document.getElementById(
+            "custom-color-indicator"
+          ).style.backgroundColor = currentColor;
+          if (currentText && currentText !== "__eraser__")
+            updateActiveModuleUI();
         });
       });
+
       document.getElementById("new-color").addEventListener("input", (e) => {
         document
           .querySelectorAll(".color-dot")
           .forEach((d) => d.classList.remove("active"));
         currentColor = e.target.value;
-      });
-
-      document.getElementById("add-btn").addEventListener("click", () => {
-        const nameIn = document.getElementById("new-name");
-        const detailIn = document.getElementById("new-detail");
-        const name = nameIn.value.trim();
-        const detail = detailIn.value.trim();
-        if (!name) return;
-        travelData.modules.push({
-          text: name,
-          color: currentColor || "#22c55e",
-          detail: detail,
-        });
-        currentText = name;
-        currentDetail = detail;
-        renderModules();
-        saveDataToCloud();
-        nameIn.value = "";
-        detailIn.value = "";
+        document.getElementById(
+          "custom-color-indicator"
+        ).style.backgroundColor = currentColor;
+        if (currentText && currentText !== "__eraser__") updateActiveModuleUI();
       });
 
       document
-        .getElementById("reset-btn")
-        .addEventListener("click", openResetModal);
+        .getElementById("add-btn")
+        .addEventListener("pointerdown", (e) => {
+          if (isGhostClick()) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const nameIn = document.getElementById("new-name");
+          const detailIn = document.getElementById("new-detail");
+          const name = nameIn.value.trim();
+          const detail = detailIn.value.trim();
+          if (!name) return;
+          travelData.modules.push({
+            text: name,
+            color: currentColor || "#22c55e",
+            detail: detail,
+          });
+          currentText = name;
+          currentDetail = detail;
+          renderModules();
+          saveDataToCloud();
+          nameIn.value = "";
+          detailIn.value = "";
+        });
 
-      async function saveDataToCloud() {
+      // 🌟 核心 0ms 極速同步 (包含 Undo/Redo 保存機制)
+      function saveDataToCloud(skipHistory = false) {
+        const currentDataStr = JSON.stringify(travelData);
+
+        if (!skipHistory && currentDataStr !== lastSavedDataStr) {
+          undoStack.push(lastSavedDataStr);
+          if (undoStack.length > 30) undoStack.shift();
+          redoStack = [];
+          lastSavedDataStr = currentDataStr;
+          updateUndoRedoUI();
+        }
+
         try {
-          localStorage.setItem(
-            "backup_travel_data",
-            JSON.stringify(travelData)
-          );
+          localStorage.setItem("backup_travel_data", currentDataStr);
         } catch (e) {}
+        updateStatus("⚡ 變更已本地即時套用");
+
         if (!supabaseClient) return;
-        try {
-          await supabaseClient
-            .from("travel_schedules")
-            .upsert({ id: SCHEDULE_ID, data: travelData });
-          updateStatus("✅ 雲端即時同步完成！");
-        } catch (e) {}
+
+        isLocalUpdating = true;
+        if (localUpdateTimer) clearTimeout(localUpdateTimer);
+        localUpdateTimer = setTimeout(() => {
+          isLocalUpdating = false;
+        }, 2000);
+
+        supabaseClient
+          .from("travel_schedules")
+          .upsert({ id: SCHEDULE_ID, data: travelData })
+          .then(({ error }) => {
+            if (error) throw error;
+            updateStatus("✅ 雲端極速同步完成！");
+          })
+          .catch((e) => {
+            updateStatus("❌ 雲端同步失敗，已保存於本地備份");
+          });
       }
 
       async function loadDataFromCloud() {
@@ -1658,13 +2186,16 @@
             initTableRows();
             renderModules();
             updateStatus("✅ 雲端同步載入完成");
+            lastSavedDataStr = JSON.stringify(travelData);
           }
         } catch (e) {}
       }
 
       validateAndRepairData();
+      lastSavedDataStr = JSON.stringify(travelData);
       initTableRows();
       renderModules();
+      updateUndoRedoUI();
 
       try {
         const cache = localStorage.getItem("backup_travel_data");
@@ -1672,6 +2203,7 @@
           if (safeMergeData(JSON.parse(cache)) === "rebuild") initTableRows();
           initTableRows();
           renderModules();
+          lastSavedDataStr = JSON.stringify(travelData);
         }
       } catch (e) {}
 
@@ -1688,7 +2220,6 @@
                 SUPABASE_ANON_KEY
               );
               loadDataFromCloud();
-
               supabaseClient
                 .channel("realtime-travel-schedule")
                 .on(
@@ -1700,6 +2231,7 @@
                     filter: `id=eq.${SCHEDULE_ID}`,
                   },
                   (payload) => {
+                    if (isLocalUpdating) return;
                     if (
                       payload.new &&
                       payload.new.data &&
@@ -1715,6 +2247,11 @@
                       initTableRows();
                       renderModules();
                       updateStatus("⚡ 雲端資料已即時同步更新！");
+
+                      lastSavedDataStr = JSON.stringify(travelData);
+                      undoStack = [];
+                      redoStack = [];
+                      updateUndoRedoUI();
                     }
                   }
                 )
@@ -1726,7 +2263,8 @@
         };
         document.body.appendChild(script);
       }
-      setTimeout(injectSupabaseSDK, 300);
+
+      injectSupabaseSDK();
     </script>
   </body>
 </html>
